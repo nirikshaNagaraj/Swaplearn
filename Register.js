@@ -60,7 +60,6 @@ export default function Register({ switchToLogin }) {
         <TextInput placeholder="Email" style={styles.input} value={email} onChangeText={setEmail} />
         <TextInput placeholder="Password" style={styles.input} secureTextEntry value={password} onChangeText={setPassword} />
 
-        {/* 🔥 TEACH */}
         <Text style={styles.skillHeading}>Skills you Teach</Text>
 
         <View style={styles.skillBarTeach}>
@@ -82,7 +81,6 @@ export default function Register({ switchToLogin }) {
           </TouchableOpacity>
         </View>
 
-        {/* FLOW */}
         {selectedType === 'teach' && step === 'category' && (
           <>
             <Text style={styles.stepTitle}>Select Category</Text>
@@ -122,7 +120,6 @@ export default function Register({ switchToLogin }) {
           </>
         )}
 
-        {/* 🔥 LEARN */}
         <Text style={styles.skillHeading}>Skills you Want to Learn</Text>
 
         <View style={styles.skillBarLearn}>
@@ -135,7 +132,7 @@ export default function Register({ switchToLogin }) {
           ))}
 
           <TouchableOpacity
-            style={styles.addButtonBlue}
+            style={styles.addButtonGreen}
             onPress={() => {
               setSelectedType('learn');
               setStep('category');
@@ -144,7 +141,7 @@ export default function Register({ switchToLogin }) {
           </TouchableOpacity>
         </View>
 
-        {/* FLOW */}
+    
         {selectedType === 'learn' && step === 'category' && (
           <>
             <Text style={styles.stepTitle}>Select Category</Text>
@@ -205,6 +202,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#f0f4f0',
     justifyContent: 'center',
     alignItems: 'center',
+    
+
   },
 
   heading: {
@@ -214,7 +213,7 @@ const styles = StyleSheet.create({
   },
 
   form: {
-    width: '45%',
+    width: '55%',
     backgroundColor: 'white',
     padding: 20,
     borderRadius: 15,
@@ -278,13 +277,6 @@ const styles = StyleSheet.create({
     margin: 4,
   },
 
-  addButtonBlue: {
-    backgroundColor: '#4CAF50',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 10,
-    margin: 4,
-  },
 
   addText: {
     color: 'white',
