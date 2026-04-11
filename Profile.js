@@ -8,20 +8,12 @@ import {
 } from 'react-native';
 import Navbar from './Navbar';
 
-export default function Profile({
-  isLoggedIn,
-  goToHome,
-  goToAbout,
-  goToDiscover,
-  goToMatch,
-  goToLogin,
-  goToRegister,
-}) {
+export default function ProfilePage(props) {
   const [activeTab, setActiveTab] = useState('skills');
 
   const user = {
-    name: "nrksha",
-    bio: "Passionate learner & teacher 🚀",
+    name: 'nrksha',
+    bio: 'Passionate learner & teacher 🚀',
     credits: 47,
     learnt: 710,
     taught: 759,
@@ -30,80 +22,124 @@ export default function Profile({
   return (
     <ScrollView style={styles.container}>
 
-      {/* NAVBAR */}
-      <Navbar
-        isLoggedIn={isLoggedIn}
-        goToHome={goToHome}
-        goToAbout={goToAbout}
-        goToDiscover={goToDiscover}
-        goToMatch={goToMatch}
-        goToLogin={goToLogin}
-        goToRegister={goToRegister}
-      />
+      <Navbar {...props} />
 
-      {/* PROFILE HEADER */}
-      <View style={styles.profileTop}>
-        <View style={styles.avatar} />
+      {/* 🔥 HEADER CARD */}
+      <View style={styles.headerCard}>
+        <View style={styles.avatar}>
+          <Text style={styles.avatarText}>👤</Text>
+        </View>
 
-        <View>
-          <Text style={styles.name}>{user.name}</Text>
-          <Text style={styles.bio}>{user.bio}</Text>
+        <Text style={styles.name}>{user.name}</Text>
+        <Text style={styles.bio}>{user.bio}</Text>
 
-          <View style={styles.stats}>
-            <Stat number={user.credits} label="Credits" />
-            <Stat number={user.learnt} label="Learnt" />
-            <Stat number={user.taught} label="Taught" />
-          </View>
+        <View style={styles.stats}>
+          <Stat number={user.credits} label="Credits" />
+          <Stat number={user.learnt} label="Learnt" />
+          <Stat number={user.taught} label="Taught" />
+        </View>
+
+        {/* 🔥 BUTTONS */}
+        <View style={styles.actions}>
+          <TouchableOpacity style={styles.editBtn}>
+            <Text style={styles.editText}>Edit</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.shareBtn}>
+            <Text style={styles.shareText}>Share</Text>
+          </TouchableOpacity>
         </View>
       </View>
 
-      {/* ACTIONS */}
-      <View style={styles.actions}>
-        <TouchableOpacity style={styles.btn}>
-          <Text style={styles.btnText}>Edit Profile</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.btn}>
-          <Text style={styles.btnText}>Share</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* TABS */}
+      {/* 🔥 TABS */}
       <View style={styles.tabs}>
-        <Tab title="Skills" active={activeTab==='skills'} onPress={()=>setActiveTab('skills')} />
-        <Tab title="Teaching" active={activeTab==='teaching'} onPress={()=>setActiveTab('teaching')} />
-        <Tab title="Learning" active={activeTab==='learning'} onPress={()=>setActiveTab('learning')} />
+        <Tab title="Skills" active={activeTab === 'skills'} onPress={() => setActiveTab('skills')} />
+        <Tab title="Teaching" active={activeTab === 'teaching'} onPress={() => setActiveTab('teaching')} />
+        <Tab title="Learning" active={activeTab === 'learning'} onPress={() => setActiveTab('learning')} />
+        <Tab title="Feedback" active={activeTab === 'feedback'} onPress={() => setActiveTab('feedback')} />
       </View>
 
       {/* CONTENT */}
       <View style={styles.section}>
-        {activeTab === 'skills' && <Text>Skills Info</Text>}
-        {activeTab === 'teaching' && <Text>No teaching sessions</Text>}
-        {activeTab === 'learning' && <Text>No learning sessions</Text>}
+        {activeTab === 'skills' && <SkillsSection />}
+        {activeTab === 'teaching' && <Empty title="Teaching Sessions" />}
+        {activeTab === 'learning' && <Empty title="Learning Sessions" />}
+        {activeTab === 'feedback' && <Empty title="Feedback" />}
       </View>
 
     </ScrollView>
   );
 }
 
+/* COMPONENTS */
+
 const Stat = ({ number, label }) => (
   <View style={styles.stat}>
     <Text style={styles.statNumber}>{number}</Text>
-    <Text>{label}</Text>
+    <Text style={styles.statLabel}>{label}</Text>
   </View>
 );
 
 const Tab = ({ title, active, onPress }) => (
   <TouchableOpacity
     onPress={onPress}
-    style={[
-      styles.tab,
-      { backgroundColor: active ? '#4CAF50' : '#151a3c' }
-    ]}
+    style={[styles.tab, active && styles.activeTab]}
   >
-    <Text style={{ color: '#fff' }}>{title}</Text>
+    <Text style={[styles.tabText, active && styles.activeTabText]}>
+      {title}
+    </Text>
   </TouchableOpacity>
 );
+
+/* 🔥 SKILLS SECTION */
+
+const SkillsSection = () => (
+  <View>
+
+    <Text style={styles.sectionTitle}>I want to learn</Text>
+    <View style={styles.grid}>
+      <SkillCard skill="React" level="Beginner" />
+      <SkillCard skill="AI" level="Intermediate" />
+      <SkillCard skill="UI/UX" level="Beginner" />
+    </View>
+
+    <Text style={styles.sectionTitle}>I can teach</Text>
+    <View style={styles.grid}>
+      <SkillCard skill="Python" level="Advanced" />
+      <SkillCard skill="JavaScript" level="Intermediate" />
+      <SkillCard skill="Editing" level="Advanced" />
+    </View>
+
+    <Text style={styles.sectionTitle}>Availability</Text>
+    <View style={styles.timeGrid}>
+      {['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map((d, i) => (
+        <View key={i} style={styles.timeCard}>
+          <Text style={styles.day}>{d}</Text>
+          <Text style={styles.time}>6PM - 9PM</Text>
+        </View>
+      ))}
+    </View>
+
+  </View>
+);
+
+const SkillCard = ({ skill, level }) => (
+  <View style={styles.skillCard}>
+    <Text style={styles.skill}>{skill}</Text>
+    <Text style={styles.level}>{level}</Text>
+  </View>
+);
+
+const Empty = ({ title }) => (
+  <View>
+    <Text style={styles.sectionTitle}>{title}</Text>
+    <View style={styles.emptyBox}>
+      <Text style={{ color: '#aaa' }}>Nothing here yet</Text>
+    </View>
+  </View>
+);
+
+/* 🔥 STYLES */
 
 const styles = StyleSheet.create({
   container: {
@@ -111,73 +147,171 @@ const styles = StyleSheet.create({
     backgroundColor: '#f0f4f0',
   },
 
-  profileTop: {
-    flexDirection: 'row',
-    padding: 20,
+  /* HEADER */
+  headerCard: {
+    backgroundColor: '#151a3c',
+    padding: 25,
+ 
     alignItems: 'center',
   },
 
   avatar: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: '#ccc',
-    marginRight: 15,
+    width: 90,
+    height: 90,
+    borderRadius: 45,
+    backgroundColor: '#fff',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  avatarText: {
+    fontSize: 30,
   },
 
   name: {
+    color: '#fff',
     fontSize: 22,
     fontWeight: 'bold',
+    marginTop: 10,
   },
 
   bio: {
-    color: '#666',
+    color: '#ccc',
+    marginTop: 5,
   },
 
   stats: {
     flexDirection: 'row',
-    marginTop: 10,
-    gap: 20,
+    gap: 30,
+    marginTop: 15,
   },
 
-  stat: {
-    alignItems: 'center',
-  },
+  stat: { alignItems: 'center' },
 
   statNumber: {
-    fontWeight: 'bold',
     color: '#4CAF50',
+    fontWeight: 'bold',
+    fontSize:15,
   },
 
+  statLabel: {
+    color: '#ccc',
+    fontSize: 15,
+  },
+
+  /* BUTTONS */
   actions: {
     flexDirection: 'row',
-    justifyContent: 'center',
     gap: 15,
+    marginTop: 15,
   },
 
-  btn: {
-    backgroundColor: '#151a3c',
-    padding: 10,
-    borderRadius: 8,
+  editBtn: {
+    backgroundColor: '#4CAF50',
+    paddingHorizontal: 75,
+    paddingVertical: 10,
+    borderRadius: 20,
   },
 
-  btnText: {
-    color: '#fff',
+  shareBtn: {
+    borderWidth: 1,
+    borderColor: '#4CAF50',
+    paddingHorizontal: 75,
+    paddingVertical: 10,
+    borderRadius: 20,
   },
 
+  editText: { color: '#fff', fontWeight: 'bold' },
+  shareText: { color: '#4CAF50', fontWeight: 'bold' },
+
+  /* TABS */
   tabs: {
     flexDirection: 'row',
     justifyContent: 'center',
-    marginTop: 20,
+    marginTop: 15,
     gap: 10,
   },
 
   tab: {
-    padding: 10,
-    borderRadius: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 15,
+    borderRadius: 20,
+    backgroundColor: '#e0e0e0',
   },
+
+  activeTab: {
+    backgroundColor: '#4CAF50',
+  },
+
+  tabText: { color: '#555' },
+  activeTabText: { color: '#fff' },
 
   section: {
     padding: 20,
+  },
+
+  sectionTitle: {
+    fontWeight: 'bold',
+    fontSize: 16,
+    marginVertical: 10,
+    color: '#151a3c',
+  },
+
+  /* GRID */
+  grid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+  },
+
+  skillCard: {
+    backgroundColor: '#fff',
+    width: '30%',
+    padding: 15,
+    borderRadius: 12,
+    marginBottom: 10,
+    elevation: 3,
+  },
+
+  skill: {
+    fontWeight: 'bold',
+    color: '#151a3c',
+  },
+
+  level: {
+    color: '#4CAF50',
+    marginTop: 5,
+  },
+
+  /* TIME */
+  timeGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+  },
+
+  timeCard: {
+    backgroundColor: '#151a3c',
+    width: '30%',
+    padding: 10,
+    borderRadius: 10,
+    marginBottom: 10,
+  },
+
+  day: {
+    color: '#4CAF50',
+    fontWeight: 'bold',
+  },
+
+  time: {
+    color: '#fff',
+    fontSize: 12,
+  },
+
+  emptyBox: {
+    backgroundColor: '#fff',
+    padding: 20,
+    borderRadius: 10,
+    alignItems: 'center',
   },
 });
