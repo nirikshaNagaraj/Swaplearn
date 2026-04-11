@@ -21,16 +21,17 @@ export default function About({
     <ScrollView style={styles.container}>
 
       {/* NAVBAR */}
-      <Navbar
-        isLoggedIn={isLoggedIn}
-        goToLogin={goToLogin}
-        goToRegister={goToRegister}
-        goToHome={goToHome}
-        goToAbout={goToAbout}
-        goToDiscover={goToDiscover}
-        goToMatch={goToMatch}
-         goToProfile={goToProfile}
-      />
+  <Navbar
+  isLoggedIn={isLoggedIn}
+  goToLogin={goToLogin}
+  goToRegister={goToRegister}
+  goToHome={goToHome}
+  goToAbout={goToAbout}
+  goToDiscover={goToDiscover}
+  goToMatch={goToMatch}
+  goToProfile={goToProfile}
+  goToMessages={goToMessages}
+/>
 
       {/* HERO */}
       <View style={styles.hero}>

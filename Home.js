@@ -16,6 +16,8 @@ export default function Home({
   goToDiscover,
   goToMatch,
   goToProfile,
+  goToMessages,   // ✅ ADD THIS
+  
 }) {
   return (
 
@@ -31,6 +33,7 @@ export default function Home({
   goToAbout={goToAbout}
   goToDiscover={goToDiscover}
   goToMatch={goToMatch}
+  goToMessages={goToMessages} 
   goToProfile={goToProfile}
   
 />

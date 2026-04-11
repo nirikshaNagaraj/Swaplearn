@@ -6,6 +6,7 @@ import Match from '../screens/Match';
 import Login from '../screens/Login';
 import Register from '../screens/Register';
 import Profile from '../screens/Profile';
+import Messages from '../screens/Messages';
 
 
 export default function Index() {
@@ -45,6 +46,7 @@ if (screen === 'login') {
       goToLogin={() => setScreen('login')}
       goToRegister={() => setScreen('register')}
       goToProfile={() => setScreen('profile')}
+      
 
     />
   );
@@ -96,6 +98,21 @@ if (screen === 'profile') {
     />
   );
 }
+if (screen === 'messages') {
+  return (
+    <Messages
+      isLoggedIn={isLoggedIn}
+      goToHome={() => setScreen('home')}
+      goToAbout={() => setScreen('about')}
+      goToDiscover={() => setScreen('discover')}
+      goToMatch={() => setScreen('match')}
+      goToProfile={() => setScreen('profile')}
+      goToMessages={() => setScreen('messages')}
+      goToLogin={() => setScreen('login')}
+      goToRegister={() => setScreen('register')}
+    />
+  );
+}
   
 
 return (
@@ -107,6 +124,7 @@ return (
     goToAbout={() => setScreen('about')}
     goToDiscover={() => setScreen('discover')}
     goToMatch={() => setScreen('match')}
+    goToMessages={() => setScreen('messages')}
     goToProfile={() => setScreen('profile')}
 
   />

@@ -9,7 +9,8 @@ export default function Navbar({
   goToAbout,
   goToDiscover,
   goToMatch,
-  goToProfile,   
+  goToProfile,
+  goToMessages, // ✅ IMPORTANT
 }) {
   return (
     <View style={styles.navbar}>
@@ -26,8 +27,11 @@ export default function Navbar({
         <Text style={styles.link} onPress={goToDiscover}>Discover</Text>
         <Text style={styles.link} onPress={goToMatch}>Match</Text>
 
+        {/* ✅ SHOW ONLY WHEN LOGGED IN */}
         {isLoggedIn && (
-          <Text style={styles.link}>Ongoing Sessions</Text>
+          <Text style={styles.link} onPress={goToMessages}>
+            Messages
+          </Text>
         )}
       </View>
 
@@ -45,8 +49,8 @@ export default function Navbar({
           </>
         ) : (
           <TouchableOpacity onPress={goToProfile}>
-  <Text style={styles.profile}>Profile</Text>
-</TouchableOpacity>
+            <Text style={styles.profile}>Profile</Text>
+          </TouchableOpacity>
         )}
       </View>
 
@@ -59,7 +63,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#151a3c', // matches your theme
+    backgroundColor: '#151a3c',
     paddingHorizontal: 30,
     paddingVertical: 15,
   },
