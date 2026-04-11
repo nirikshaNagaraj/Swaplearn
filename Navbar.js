@@ -9,6 +9,7 @@ export default function Navbar({
   goToAbout,
   goToDiscover,
   goToMatch,
+  goToProfile,   
 }) {
   return (
     <View style={styles.navbar}>
@@ -43,9 +44,9 @@ export default function Navbar({
             </TouchableOpacity>
           </>
         ) : (
-          <TouchableOpacity>
-            <Text style={styles.profile}>Profile</Text>
-          </TouchableOpacity>
+          <TouchableOpacity onPress={goToProfile}>
+  <Text style={styles.profile}>Profile</Text>
+</TouchableOpacity>
         )}
       </View>
 

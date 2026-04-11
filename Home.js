@@ -15,6 +15,7 @@ export default function Home({
   goToAbout,
   goToDiscover,
   goToMatch,
+  goToProfile,
 }) {
   return (
 
@@ -30,6 +31,8 @@ export default function Home({
   goToAbout={goToAbout}
   goToDiscover={goToDiscover}
   goToMatch={goToMatch}
+  goToProfile={goToProfile}
+  
 />
 
       {/* HERO SECTION */}
