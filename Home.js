@@ -84,9 +84,20 @@ export default function Home({
         Learn something new and improve your skills.
       </Text>
 
-      <TouchableOpacity style={styles.lessonBtn}>
-        <Text style={styles.lessonBtnText}>Get Started</Text>
-      </TouchableOpacity>
+      <TouchableOpacity
+  style={styles.lessonBtn}
+  onPress={() => {
+    if (!isLoggedIn) {
+      goToLogin();   
+    } else {
+      alert('Request Sent!'); 
+    }
+  }}
+>
+  <Text style={styles.lessonBtnText}>
+    {isLoggedIn ? 'Request' : 'Get Started'}
+  </Text>
+</TouchableOpacity>
     </View>
   ))}
 </View>

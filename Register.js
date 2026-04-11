@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
 
-export default function Register({ switchToLogin }) {
+export default function Register({ switchToLogin, goBack }) { // 🔥 add goBack
+
   const [username, setUsername] = useState('');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -51,6 +52,12 @@ export default function Register({ switchToLogin }) {
 
   return (
     <View style={styles.container}>
+
+      {/* ❌ CLOSE BUTTON (NEW) */}
+      <TouchableOpacity style={styles.closeBtn} onPress={goBack}>
+        <Text style={styles.closeText}>✕</Text>
+      </TouchableOpacity>
+
       <Text style={styles.heading}>Register</Text>
 
       <View style={styles.form}>
@@ -60,9 +67,10 @@ export default function Register({ switchToLogin }) {
         <TextInput placeholder="Email" style={styles.input} value={email} onChangeText={setEmail} />
         <TextInput placeholder="Password" style={styles.input} secureTextEntry value={password} onChangeText={setPassword} />
 
+        {/* ===== TEACH ===== */}
         <Text style={styles.skillHeading}>Skills you Teach</Text>
 
-        <View style={styles.skillBarTeach}>
+        <View style={styles.skillBar}>
           {teachSkills.map((item, index) => (
             <TouchableOpacity key={index} style={styles.chip} onPress={() => removeSkill('teach', index)}>
               <Text style={styles.chipText}>
@@ -72,7 +80,7 @@ export default function Register({ switchToLogin }) {
           ))}
 
           <TouchableOpacity
-            style={styles.addButtonGreen}
+            style={styles.addButton}
             onPress={() => {
               setSelectedType('teach');
               setStep('category');
@@ -81,48 +89,10 @@ export default function Register({ switchToLogin }) {
           </TouchableOpacity>
         </View>
 
-        {selectedType === 'teach' && step === 'category' && (
-          <>
-            <Text style={styles.stepTitle}>Select Category</Text>
-            {Object.keys(categories).map((cat) => (
-              <TouchableOpacity key={cat} style={styles.option} onPress={() => {
-                setSelectedCategory(cat);
-                setStep('skill');
-              }}>
-                <Text>{cat}</Text>
-              </TouchableOpacity>
-            ))}
-          </>
-        )}
-
-        {selectedType === 'teach' && step === 'skill' && (
-          <>
-            <Text style={styles.stepTitle}>Select Skill</Text>
-            {categories[selectedCategory].map((skill) => (
-              <TouchableOpacity key={skill} style={styles.option} onPress={() => {
-                setSelectedSkill(skill);
-                setStep('language');
-              }}>
-                <Text>{skill}</Text>
-              </TouchableOpacity>
-            ))}
-          </>
-        )}
-
-        {selectedType === 'teach' && step === 'language' && (
-          <>
-            <Text style={styles.stepTitle}>Select Preferred Language</Text>
-            {languages.map((lang) => (
-              <TouchableOpacity key={lang} style={styles.option} onPress={() => addSkill(lang)}>
-                <Text>{lang}</Text>
-              </TouchableOpacity>
-            ))}
-          </>
-        )}
-
+        {/* ===== LEARN ===== */}
         <Text style={styles.skillHeading}>Skills you Want to Learn</Text>
 
-        <View style={styles.skillBarLearn}>
+        <View style={styles.skillBar}>
           {learnSkills.map((item, index) => (
             <TouchableOpacity key={index} style={styles.chip} onPress={() => removeSkill('learn', index)}>
               <Text style={styles.chipText}>
@@ -132,7 +102,7 @@ export default function Register({ switchToLogin }) {
           ))}
 
           <TouchableOpacity
-            style={styles.addButtonGreen}
+            style={styles.addButton}
             onPress={() => {
               setSelectedType('learn');
               setStep('category');
@@ -141,8 +111,8 @@ export default function Register({ switchToLogin }) {
           </TouchableOpacity>
         </View>
 
-    
-        {selectedType === 'learn' && step === 'category' && (
+        {/* ===== FLOW (COMMON FOR BOTH) ===== */}
+        {step === 'category' && (
           <>
             <Text style={styles.stepTitle}>Select Category</Text>
             {Object.keys(categories).map((cat) => (
@@ -156,7 +126,7 @@ export default function Register({ switchToLogin }) {
           </>
         )}
 
-        {selectedType === 'learn' && step === 'skill' && (
+        {step === 'skill' && (
           <>
             <Text style={styles.stepTitle}>Select Skill</Text>
             {categories[selectedCategory].map((skill) => (
@@ -170,9 +140,9 @@ export default function Register({ switchToLogin }) {
           </>
         )}
 
-        {selectedType === 'learn' && step === 'language' && (
+        {step === 'language' && (
           <>
-            <Text style={styles.stepTitle}>Select Preferred Language</Text>
+            <Text style={styles.stepTitle}>Select Language</Text>
             {languages.map((lang) => (
               <TouchableOpacity key={lang} style={styles.option} onPress={() => addSkill(lang)}>
                 <Text>{lang}</Text>
@@ -202,14 +172,13 @@ const styles = StyleSheet.create({
     backgroundColor: '#f0f4f0',
     justifyContent: 'center',
     alignItems: 'center',
-    
-
   },
 
   heading: {
     fontSize: 32,
     fontWeight: 'bold',
     marginBottom: 20,
+    color: '#151a3c',
   },
 
   form: {
@@ -232,21 +201,7 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
 
-  stepTitle: {
-    marginTop: 10,
-    fontWeight: 'bold',
-  },
-
-  skillBarTeach: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    backgroundColor: '#e6f4ea',
-    padding: 8,
-    borderRadius: 12,
-    marginVertical: 5,
-  },
-
-  skillBarLearn: {
+  skillBar: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     backgroundColor: '#e6f4ea',
@@ -269,7 +224,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
 
-  addButtonGreen: {
+  addButton: {
     backgroundColor: '#4CAF50',
     paddingHorizontal: 10,
     paddingVertical: 6,
@@ -277,9 +232,13 @@ const styles = StyleSheet.create({
     margin: 4,
   },
 
-
   addText: {
     color: 'white',
+    fontWeight: 'bold',
+  },
+
+  stepTitle: {
+    marginTop: 10,
     fontWeight: 'bold',
   },
 
@@ -300,7 +259,7 @@ const styles = StyleSheet.create({
 
   buttonText: {
     color: 'white',
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: '600',
   },
 
@@ -313,5 +272,19 @@ const styles = StyleSheet.create({
   loginLink: {
     color: '#4CAF50',
     fontWeight: 'bold',
+  },
+
+  /* ❌ CLOSE BUTTON */
+  closeBtn: {
+    position: 'absolute',
+    top: 40,
+    right: 30,
+    zIndex: 10,
+  },
+
+  closeText: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#151a3c',
   },
 });
