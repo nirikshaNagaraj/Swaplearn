@@ -5,6 +5,8 @@ import Discover from '../screens/Discover';
 import Match from '../screens/Match';
 import Login from '../screens/Login';
 import Register from '../screens/Register';
+import Profile from '../screens/Profile';
+
 
 export default function Index() {
   const [screen, setScreen] = useState('home');
@@ -26,7 +28,9 @@ if (screen === 'login') {
 
   if (screen === 'register') {
     return (
-      <Register switchToLogin={() => setScreen('login')} />
+      <Register 
+      switchToLogin={() => setScreen('login')}
+      goBack={() => setScreen('home')}  />
     );
   }
 
@@ -40,6 +44,8 @@ if (screen === 'login') {
       goToMatch={() => setScreen('match')}
       goToLogin={() => setScreen('login')}
       goToRegister={() => setScreen('register')}
+      goToProfile={() => setScreen('profile')}
+
     />
   );
 }
@@ -54,6 +60,8 @@ if (screen === 'discover') {
       goToMatch={() => setScreen('match')}
       goToLogin={() => setScreen('login')}
       goToRegister={() => setScreen('register')}
+      goToProfile={() => setScreen('profile')}
+
     />
   );
 }
@@ -68,6 +76,23 @@ if (screen === 'match') {
       goToMatch={() => setScreen('match')}
       goToLogin={() => setScreen('login')}
       goToRegister={() => setScreen('register')}
+      goToProfile={() => setScreen('profile')}
+
+    />
+  );
+}
+if (screen === 'profile') {
+  return (
+    <Profile
+      isLoggedIn={isLoggedIn}
+      goToHome={() => setScreen('home')}
+      goToAbout={() => setScreen('about')}
+      goToDiscover={() => setScreen('discover')}
+      goToMatch={() => setScreen('match')}
+      goToLogin={() => setScreen('login')}
+      goToRegister={() => setScreen('register')}
+      goToProfile={() => setScreen('profile')}
+
     />
   );
 }
@@ -82,6 +107,8 @@ return (
     goToAbout={() => setScreen('about')}
     goToDiscover={() => setScreen('discover')}
     goToMatch={() => setScreen('match')}
+    goToProfile={() => setScreen('profile')}
+
   />
 );
 }
