@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -7,46 +7,100 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import Navbar from './Navbar';
+import { API } from '../../api';
 
 export default function Discover(props) {
 
-  const users = [
-    { username: 'Rahul', teaches: 'Python', learns: 'UI Design' },
-    { username: 'Anjali', teaches: 'Dance', learns: 'Video Editing' },
-    { username: 'Kiran', teaches: 'Marketing', learns: 'Coding' },
-    { username: 'Sneha', teaches: 'Photography', learns: 'Content Creation' },
-    { username: 'Arjun', teaches: 'Java', learns: 'AI' },
-    { username: 'Meera', teaches: 'Music', learns: 'Editing' },
-  ];
+  const [users, setUsers] = useState([]);
+
+  useEffect(() => {
+    console.log("DISCOVER OPENED ✅"); // 🔥 debug
+    fetchUsers();
+  }, []);
+
+  const fetchUsers = async () => {
+    try {
+      const res = await fetch(`${API}/users/`);
+      const data = await res.json();
+
+      console.log("USERS:", data);
+      setUsers(data);
+
+    } catch (err) {
+      console.log("ERROR:", err);
+
+      // 🔥 fallback test data (prevents blank screen)
+      setUsers([
+        {
+          username: "testuser",
+          name: "Test User",
+          teachSkills: [{ skill: "React" }],
+          learnSkills: [{ skill: "Python" }]
+        }
+      ]);
+    }
+  };
 
   return (
     <ScrollView style={styles.container}>
-      <Navbar {...props} />
+
+      {/* ✅ FIXED NAVBAR */}
+      <Navbar
+        isLoggedIn={props.isLoggedIn}
+        goToHome={props.goToHome}
+        goToAbout={props.goToAbout}
+        goToDiscover={props.goToDiscover}
+        goToMatch={props.goToMatch}
+        goToMessages={props.goToMessages}
+        goToProfile={props.goToProfile}
+        goToLogin={props.goToLogin}
+        goToRegister={props.goToRegister}
+      />
 
       <Text style={styles.title}>Discover People</Text>
 
-      <View style={styles.grid}>
-        {users.map((user, index) => (
-          <View key={index} style={styles.card}>
+      {/* ✅ SAFE RENDER */}
+      {users?.length === 0 ? (
+        <Text style={{ textAlign: 'center' }}>No users found</Text>
+      ) : (
+        <View style={styles.grid}>
+          {users.map((user, index) => (
+            <View key={index} style={styles.card}>
 
-            <Text style={styles.username}>{user.username}</Text>
+              <Text style={styles.username}>
+                {user.name || user.username}
+              </Text>
 
-            <Text style={styles.skill}>Teaches: {user.teaches}</Text>
-            <Text style={styles.skill}>Learns: {user.learns}</Text>
+              <Text style={styles.skill}>
+                Teaches: {
+                  user.teachSkills?.length
+                    ? user.teachSkills.map(s => s.skill).join(', ')
+                    : 'None'
+                }
+              </Text>
 
-            <TouchableOpacity
-              style={styles.connectBtn}
-              onPress={() => {
-                if (!props.isLoggedIn) props.goToLogin();
-                else alert('Connected!');
-              }}
-            >
-              <Text style={styles.connectText}>Connect</Text>
-            </TouchableOpacity>
+              <Text style={styles.skill}>
+                Learns: {
+                  user.learnSkills?.length
+                    ? user.learnSkills.map(s => s.skill).join(', ')
+                    : 'None'
+                }
+              </Text>
 
-          </View>
-        ))}
-      </View>
+              <TouchableOpacity
+                style={styles.connectBtn}
+                onPress={() => {
+                  if (!props.isLoggedIn) props.goToLogin();
+                  else alert('Connected!');
+                }}
+              >
+                <Text style={styles.connectText}>Connect</Text>
+              </TouchableOpacity>
+
+            </View>
+          ))}
+        </View>
+      )}
 
     </ScrollView>
   );
@@ -68,12 +122,12 @@ const styles = StyleSheet.create({
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'space-between', // 🔥 important
+    justifyContent: 'space-between',
     paddingHorizontal: 10,
   },
 
   card: {
-    width: '30%', // 🔥 THIS MAKES 3 PER ROW
+    width: '30%',
     backgroundColor: 'white',
     padding: 15,
     marginBottom: 15,
@@ -91,6 +145,7 @@ const styles = StyleSheet.create({
   skill: {
     fontSize: 13,
     color: '#555',
+    marginTop: 2,
   },
 
   connectBtn: {

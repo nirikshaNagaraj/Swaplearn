@@ -16,6 +16,7 @@ export default function About({
   goToDiscover,
   goToMatch,
   goToProfile,
+  goToMessages,
 }) {
   return (
     <ScrollView style={styles.container}>

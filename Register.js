@@ -1,7 +1,16 @@
-import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  ActivityIndicator,
+  FlatList
+} from 'react-native';
+import { API } from '../../api';
 
-export default function Register({ switchToLogin, goBack }) { // 🔥 add goBack
+export default function Register({ switchToLogin, goBack }) {
 
   const [username, setUsername] = useState('');
   const [name, setName] = useState('');
@@ -16,13 +25,34 @@ export default function Register({ switchToLogin, goBack }) { // 🔥 add goBack
   const [selectedCategory, setSelectedCategory] = useState('');
   const [selectedSkill, setSelectedSkill] = useState('');
 
-  const categories = {
-    Programming: ['JavaScript', 'Python', 'Java'],
-    Music: ['Guitar', 'Piano', 'Singing'],
-    Language: ['English', 'Spanish', 'Hindi']
-  };
+  const [categories, setCategories] = useState({});
+  const [languages, setLanguages] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const languages = ['English', 'Hindi', 'Kannada'];
+  useEffect(() => {
+    fetchMetadata();
+  }, []);
+
+  const fetchMetadata = async () => {
+    try {
+      const res = await fetch(`${API}/metadata/`);
+      const data = await res.json();
+
+      let formatted = {};
+      data.categories.forEach(c => {
+        formatted[c.name] = c.skills;
+      });
+
+      setCategories(formatted);
+      setLanguages(data.languages);
+      setLoading(false);
+
+    } catch (err) {
+      console.log(err);
+      alert("Failed to load skills ❌");
+      setLoading(false);
+    }
+  };
 
   const resetFlow = () => {
     setStep('');
@@ -31,7 +61,20 @@ export default function Register({ switchToLogin, goBack }) { // 🔥 add goBack
   };
 
   const addSkill = (lang) => {
+    if (!selectedSkill) return;
+
     const newSkill = { skill: selectedSkill, language: lang };
+
+    // ❌ prevent duplicate across teach & learn
+    const existsInOther =
+      selectedType === 'teach'
+        ? learnSkills.some(s => s.skill === selectedSkill)
+        : teachSkills.some(s => s.skill === selectedSkill);
+
+    if (existsInOther) {
+      alert("Skill already selected in other section ❌");
+      return;
+    }
 
     if (selectedType === 'teach') {
       setTeachSkills([...teachSkills, newSkill]);
@@ -50,10 +93,51 @@ export default function Register({ switchToLogin, goBack }) { // 🔥 add goBack
     }
   };
 
+  const handleRegister = async () => {
+    if (!username || !password) {
+      alert("Username & Password required");
+      return;
+    }
+
+    try {
+      const res = await fetch(`${API}/register/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          username,
+          password,
+          name,
+          email,
+          teachSkills,
+          learnSkills,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (res.ok) {
+        alert("Registered successfully ✅");
+        switchToLogin();
+      } else {
+        alert(data.error || "Registration failed ❌");
+      }
+
+    } catch (err) {
+      console.log(err);
+      alert("Server error ❌");
+    }
+  };
+
+  const renderCard = (item, onPress) => (
+    <TouchableOpacity style={styles.card} onPress={onPress}>
+      <Text style={styles.cardIcon}>  </Text>
+      <Text style={styles.cardTitle}>{item}</Text>
+    </TouchableOpacity>
+  );
+
   return (
     <View style={styles.container}>
 
-      {/* ❌ CLOSE BUTTON (NEW) */}
       <TouchableOpacity style={styles.closeBtn} onPress={goBack}>
         <Text style={styles.closeText}>✕</Text>
       </TouchableOpacity>
@@ -67,21 +151,18 @@ export default function Register({ switchToLogin, goBack }) { // 🔥 add goBack
         <TextInput placeholder="Email" style={styles.input} value={email} onChangeText={setEmail} />
         <TextInput placeholder="Password" style={styles.input} secureTextEntry value={password} onChangeText={setPassword} />
 
-        {/* ===== TEACH ===== */}
+        {/* TEACH */}
         <Text style={styles.skillHeading}>Skills you Teach</Text>
-
         <View style={styles.skillBar}>
           {teachSkills.map((item, index) => (
             <TouchableOpacity key={index} style={styles.chip} onPress={() => removeSkill('teach', index)}>
-              <Text style={styles.chipText}>
-                {item.skill} ({item.language}) ✕
-              </Text>
+              <Text style={styles.chipText}>{item.skill} ({item.language}) ✕</Text>
             </TouchableOpacity>
           ))}
-
           <TouchableOpacity
             style={styles.addButton}
             onPress={() => {
+              if (loading) return alert("Loading...");
               setSelectedType('teach');
               setStep('category');
             }}>
@@ -89,21 +170,18 @@ export default function Register({ switchToLogin, goBack }) { // 🔥 add goBack
           </TouchableOpacity>
         </View>
 
-        {/* ===== LEARN ===== */}
+        {/* LEARN */}
         <Text style={styles.skillHeading}>Skills you Want to Learn</Text>
-
         <View style={styles.skillBar}>
           {learnSkills.map((item, index) => (
             <TouchableOpacity key={index} style={styles.chip} onPress={() => removeSkill('learn', index)}>
-              <Text style={styles.chipText}>
-                {item.skill} ({item.language}) ✕
-              </Text>
+              <Text style={styles.chipText}>{item.skill} ({item.language}) ✕</Text>
             </TouchableOpacity>
           ))}
-
           <TouchableOpacity
             style={styles.addButton}
             onPress={() => {
+              if (loading) return alert("Loading...");
               setSelectedType('learn');
               setStep('category');
             }}>
@@ -111,47 +189,60 @@ export default function Register({ switchToLogin, goBack }) { // 🔥 add goBack
           </TouchableOpacity>
         </View>
 
-        {/* ===== FLOW (COMMON FOR BOTH) ===== */}
-        {step === 'category' && (
+        {loading && <ActivityIndicator size="large" color="#4CAF50" />}
+
+        {/* CATEGORY GRID */}
+        {step === 'category' && !loading && (
           <>
             <Text style={styles.stepTitle}>Select Category</Text>
-            {Object.keys(categories).map((cat) => (
-              <TouchableOpacity key={cat} style={styles.option} onPress={() => {
-                setSelectedCategory(cat);
-                setStep('skill');
-              }}>
-                <Text>{cat}</Text>
-              </TouchableOpacity>
-            ))}
+            <FlatList
+              data={Object.keys(categories)}
+              numColumns={2}
+              keyExtractor={(item) => item}
+              renderItem={({ item }) =>
+                renderCard(item, () => {
+                  setSelectedCategory(item);
+                  setStep('skill');
+                })
+              }
+            />
           </>
         )}
 
+        {/* SKILL GRID */}
         {step === 'skill' && (
           <>
             <Text style={styles.stepTitle}>Select Skill</Text>
-            {categories[selectedCategory].map((skill) => (
-              <TouchableOpacity key={skill} style={styles.option} onPress={() => {
-                setSelectedSkill(skill);
-                setStep('language');
-              }}>
-                <Text>{skill}</Text>
-              </TouchableOpacity>
-            ))}
+            <FlatList
+              data={categories[selectedCategory] || []}
+              numColumns={2}
+              keyExtractor={(item) => item}
+              renderItem={({ item }) =>
+                renderCard(item, () => {
+                  setSelectedSkill(item);
+                  setStep('language');
+                })
+              }
+            />
           </>
         )}
 
+        {/* LANGUAGE GRID */}
         {step === 'language' && (
           <>
             <Text style={styles.stepTitle}>Select Language</Text>
-            {languages.map((lang) => (
-              <TouchableOpacity key={lang} style={styles.option} onPress={() => addSkill(lang)}>
-                <Text>{lang}</Text>
-              </TouchableOpacity>
-            ))}
+            <FlatList
+              data={languages}
+              numColumns={2}
+              keyExtractor={(item) => item}
+              renderItem={({ item }) =>
+                renderCard(item, () => addSkill(item))
+              }
+            />
           </>
         )}
 
-        <TouchableOpacity style={styles.button}>
+        <TouchableOpacity style={styles.button} onPress={handleRegister}>
           <Text style={styles.buttonText}>Register</Text>
         </TouchableOpacity>
 
@@ -169,7 +260,7 @@ export default function Register({ switchToLogin, goBack }) { // 🔥 add goBack
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f0f4f0',
+    backgroundColor: '#f0f4f0', // ✅ LIGHT BACK (original)
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -178,12 +269,12 @@ const styles = StyleSheet.create({
     fontSize: 32,
     fontWeight: 'bold',
     marginBottom: 20,
-    color: '#151a3c',
+    color: '#151a3c', // ✅ dark blue text
   },
 
   form: {
     width: '55%',
-    backgroundColor: 'white',
+    backgroundColor: 'white', // ✅ white card
     padding: 20,
     borderRadius: 15,
     elevation: 5,
@@ -274,17 +365,14 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
 
-  /* ❌ CLOSE BUTTON */
   closeBtn: {
     position: 'absolute',
     top: 40,
     right: 30,
-    zIndex: 10,
   },
 
   closeText: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#151a3c',
   },
 });

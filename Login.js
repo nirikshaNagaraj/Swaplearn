@@ -1,26 +1,47 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
+import { API } from '../../api';
 
 export default function Login({ switchToRegister, onLoginSuccess, goBack }) {
 
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
 
-  // 🔥 Proper login handler
-  const handleLogin = () => {
-    if (!username || !password) {
-      alert('Please fill all fields');
-      return;
+  
+ const handleLogin = async () => {
+  if (!username || !password) {
+    alert('Please fill all fields');
+    return;
+  }
+
+  try {
+    const res = await fetch(`${API}/login/`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password }),
+    });
+
+    const data = await res.json();
+
+    if (res.ok) {
+      alert("Login success ");
+
+
+      onLoginSuccess(data);
+
+    } else {
+      alert(data.error || "Login failed ");
     }
 
-    // later → backend validation
-    onLoginSuccess();
-  };
-
+  } catch (err) {
+    console.log(err);
+    alert("Server error ");
+  }
+};
   return (
     <View style={styles.container}>
 
-      {/* ❌ CLOSE BUTTON */}
+  
       <TouchableOpacity style={styles.closeBtn} onPress={goBack}>
         <Text style={styles.closeText}>✕</Text>
       </TouchableOpacity>
@@ -44,7 +65,6 @@ export default function Login({ switchToRegister, onLoginSuccess, goBack }) {
           onChangeText={setPassword}
         />
 
-        {/* ✅ SINGLE BUTTON (FIXED) */}
         <TouchableOpacity style={styles.button} onPress={handleLogin}>
           <Text style={styles.buttonText}>Login</Text>
         </TouchableOpacity>
