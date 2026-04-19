@@ -1,196 +1,209 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  FlatList,
-  ActivityIndicator,
+  ScrollView,
+  TouchableOpacity,
 } from 'react-native';
 
-const MatchPage = () => {
-  const [data, setData] = useState([]);
-  const [loading, setLoading] = useState(true);
+import Navbar from './Navbar';
+import { API } from '../../api';
 
-  // 🔥 CHANGE THIS BASED ON YOUR BACKEND
-  const API = "http://10.0.2.2:8000"; 
-  // OR: http://192.168.x.x:8000 for real phone
+export default function Match({
+  user,
+  isLoggedIn,
+  goToLogin,
+  goToHome,
+  goToDiscover,
+  goToProfile,
+  goToAbout,
+  goToMessages,
+}) {
 
+  const [matches, setMatches] = useState([]);
+
+  // ==============================
+  // FETCH MATCHES
+  // ==============================
   useEffect(() => {
-    loadUsers();
-  }, []);
+    if (!user?.username) return;
 
-  const loadUsers = async () => {
+    fetch(`${API}/match/?username=${user.username}`)
+      .then(res => res.json())
+      .then(data => {
+        console.log("MATCH DATA:", data);
+        setMatches(data);
+      })
+      .catch(err => console.log("Match error:", err));
+  }, [user]);
+
+  // ==============================
+  // CONNECT BUTTON
+  // ==============================
+  const sendRequest = async (m) => {
+
+    if (!isLoggedIn || !user) {
+      goToLogin?.();
+      return;
+    }
+
     try {
-      const res = await fetch(`${API}/get-users/`);
-      const json = await res.json();
+      const res = await fetch(`${API}/send-request/`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          sender: user.username,
+          receiver: m.username,
+          skill: m.skill || "",
+          language: m.language || "",
+        }),
+      });
 
-      console.log("API RESPONSE:", json);
+      const data = await res.json();
 
-      if (Array.isArray(json)) {
-        setData(json);
+      if (res.ok) {
+        alert("Request Sent 🚀");
       } else {
-        setData([]);
+        alert(data.error || "Failed to send request");
       }
 
     } catch (err) {
-      console.log("FETCH ERROR:", err);
-
-      // 🔥 fallback so UI NEVER stays blank
-      setData([
-        {
-          username: "demo",
-          name: "Demo User",
-          views: 2,
-          teachSkills: [{ skill: "React" }],
-          learnSkills: [{ skill: "AI" }]
-        }
-      ]);
-
-    } finally {
-      setLoading(false);
+      console.log(err);
+      alert("Server error ❌");
     }
   };
 
-  const renderItem = ({ item }) => {
-    const name = item?.name || item?.username || "Unknown";
-    const views = item?.views ?? 0;
-
-    const teach = item?.teachSkills || [];
-    const learn = item?.learnSkills || [];
-
-    return (
-      <View style={styles.card}>
-
-        {/* name */}
-        <Text style={styles.name}>{name}</Text>
-
-        {/* views */}
-        <Text style={styles.views}>👁 {views} views</Text>
-
-        {/* teach */}
-        <Text style={styles.label}>Can Teach</Text>
-        <Text style={styles.text}>
-          {teach.length
-            ? teach.map(s => s.skill).join(' • ')
-            : 'Not added'}
-        </Text>
-
-        {/* learn */}
-        <Text style={styles.label}>Wants to Learn</Text>
-        <Text style={styles.text}>
-          {learn.length
-            ? learn.map(s => s.skill).join(' • ')
-            : 'Not added'}
-        </Text>
-
-      </View>
-    );
-  };
-
-  if (loading) {
-    return (
-      <View style={styles.loading}>
-        <ActivityIndicator size="large" color="#000" />
-      </View>
-    );
-  }
-
+  // ==============================
+  // UI
+  // ==============================
   return (
-    <View style={styles.container}>
+    <ScrollView style={styles.container}>
 
-      <Text style={styles.title}>Discover People</Text>
-      <Text style={styles.subtitle}>All users in Swaplearn</Text>
-
-      {/* DEBUG LINE (VERY IMPORTANT) */}
-      <Text style={styles.debug}>
-        Users Loaded: {data.length}
-      </Text>
-
-      <FlatList
-        data={data}
-        keyExtractor={(item, index) => index.toString()}
-        renderItem={renderItem}
-        contentContainerStyle={{ paddingBottom: 20 }}
-        ListEmptyComponent={
-          <Text style={styles.empty}>No users found</Text>
-        }
+      {/* NAVBAR FIXED */}
+      <Navbar
+        isLoggedIn={isLoggedIn}
+        goToLogin={goToLogin}
+        goToHome={goToHome}
+        goToDiscover={goToDiscover}
+        goToProfile={goToProfile}
+        goToAbout={goToAbout}
+        goToMessages={goToMessages}
       />
 
-    </View>
+      <Text style={styles.title}>Best Matches</Text>
+
+      {/* NO USER */}
+      {!user ? (
+        <Text style={styles.noMatch}>
+          Login to see matches
+        </Text>
+      ) : matches.length === 0 ? (
+        <Text style={styles.noMatch}>
+          No matches found
+        </Text>
+      ) : (
+        <View style={styles.grid}>
+          {matches.map((m, i) => (
+            <View key={i} style={styles.card}>
+
+              <Text style={styles.username}>
+                {m.name || m.username}
+              </Text>
+
+              <Text style={styles.tag}>
+                Match Score: {m.matchScore || 0}
+              </Text>
+
+              <Text style={styles.tagAlt}>
+                Click connect to send request
+              </Text>
+
+              <TouchableOpacity
+                style={styles.connectBtn}
+                onPress={() => sendRequest(m)}
+              >
+                <Text style={styles.connectText}>
+                  Connect
+                </Text>
+              </TouchableOpacity>
+
+            </View>
+          ))}
+        </View>
+      )}
+    </ScrollView>
   );
-};
+}
 
-export default MatchPage;
-
+// ==============================
+// STYLES
+// ==============================
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f6f7fb',
-    padding: 14,
+    backgroundColor: '#f0f4f0',
   },
 
   title: {
-    fontSize: 24,
-    fontWeight: '800',
-    color: '#111',
+    fontSize: 28,
+    textAlign: 'center',
+    margin: 20,
+    fontWeight: 'bold',
+    color: '#151a3c',
   },
 
-  subtitle: {
-    fontSize: 13,
-    color: '#777',
-    marginBottom: 10,
+  noMatch: {
+    textAlign: 'center',
+    color: 'gray',
+    marginTop: 20,
   },
 
-  debug: {
-    fontSize: 12,
-    color: 'red',
-    marginBottom: 10,
+  grid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    padding: 10,
   },
 
   card: {
     backgroundColor: '#fff',
-    padding: 16,
-    borderRadius: 14,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#eee',
+    padding: 18,
+    margin: 10,
+    borderRadius: 12,
+    width: 180,
+    elevation: 4,
   },
 
-  name: {
+  username: {
+    fontWeight: 'bold',
     fontSize: 18,
-    fontWeight: '700',
-    color: '#111',
+    marginBottom: 5,
   },
 
-  views: {
-    fontSize: 12,
-    color: '#666',
-    marginTop: 4,
-  },
-
-  label: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#aaa',
-    marginTop: 10,
-    textTransform: 'uppercase',
-  },
-
-  text: {
-    fontSize: 14,
+  tag: {
+    marginTop: 5,
     color: '#333',
-    marginTop: 4,
   },
 
-  loading: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+  tagAlt: {
+    marginBottom: 10,
+    color: '#777',
+    fontSize: 12,
   },
 
-  empty: {
+  connectBtn: {
+    backgroundColor: '#151a3c',
+    padding: 10,
+    borderRadius: 8,
+    marginTop: 10,
+  },
+
+  connectText: {
+    color: '#fff',
     textAlign: 'center',
-    marginTop: 50,
-    color: '#999',
+    fontWeight: 'bold',
   },
 });

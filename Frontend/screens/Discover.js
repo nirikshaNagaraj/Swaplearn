@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   Modal,
 } from 'react-native';
+
 import Navbar from './Navbar';
 import { API } from '../../api';
 
@@ -25,11 +26,12 @@ export default function Discover(props) {
       const data = await res.json();
       setUsers(data);
     } catch (error) {
-      console.log(error);
+      console.log("FETCH USERS ERROR:", error);
     }
   };
 
-  const toggleConnect = (user) => {
+  // ✅ FIXED CONNECT REQUEST
+  const toggleConnect = async (user) => {
     if (!props.isLoggedIn) {
       props.goToLogin();
       return;
@@ -37,15 +39,47 @@ export default function Discover(props) {
 
     const status = connections[user.username];
 
-    if (!status) {
-      setConnections((prev) => ({
-        ...prev,
-        [user.username]: 'pending',
-      }));
-    } else {
-      const updated = { ...connections };
-      delete updated[user.username];
-      setConnections(updated);
+    // cancel request locally
+    if (status) {
+      setConnections((prev) => {
+        const updated = { ...prev };
+        delete updated[user.username];
+        return updated;
+      });
+      return;
+    }
+
+    try {
+      const res = await fetch("http://192.168.1.6:8000/api/send-request/", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          sender_id: props.user?.user_id,
+
+          // ✅ FIX: avoid undefined crash
+          receiver_id: user.user_id || user.id,
+
+          skill: user.teachSkills?.[0]?.skill || "General",
+          language: user.teachSkills?.[0]?.language || "English",
+        }),
+      });
+
+      const data = await res.json();
+
+      if (res.ok) {
+        setConnections((prev) => ({
+          ...prev,
+          [user.username]: "pending",
+        }));
+      } else {
+        console.log("SERVER RESPONSE ERROR:", data);
+        alert(data.error || "Request failed");
+      }
+    } catch (err) {
+      console.log("REQUEST ERROR:", err);
+      alert("Server error (check backend or IP)");
     }
   };
 
@@ -69,6 +103,16 @@ export default function Discover(props) {
       .join(', ');
   };
 
+  const formatAvailability = (availability) => {
+    if (!availability || availability.length === 0) {
+      return 'No availability set';
+    }
+
+    return availability
+      .map(item => `${item.day}: ${item.slots.join(', ')}`)
+      .join('\n');
+  };
+
   return (
     <ScrollView style={styles.container}>
       <Navbar {...props} />
@@ -83,7 +127,7 @@ export default function Discover(props) {
             </Text>
 
             <Text style={styles.info}>
-               Credits: {user.credits || 0}
+              Credits: {user.credits || 0}
             </Text>
 
             <Text style={styles.info}>
@@ -91,16 +135,14 @@ export default function Discover(props) {
             </Text>
 
             <Text style={styles.info}>
-             Learns: {learnSkills(user)}
+              Learns: {learnSkills(user)}
             </Text>
 
             <TouchableOpacity
               style={styles.viewBtn}
               onPress={() => setSelectedUser(user)}
             >
-              <Text style={styles.btnText}>
-                 View Profile
-              </Text>
+              <Text style={styles.btnText}>View Profile</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -117,17 +159,16 @@ export default function Discover(props) {
         ))}
       </View>
 
-      {/* FULL PROFILE MODAL */}
+      {/* MODAL */}
       <Modal visible={!!selectedUser} transparent animationType="fade">
         <View style={styles.modalOverlay}>
           {selectedUser && (
             <View style={styles.modalCard}>
-              {/* HEADER */}
+
               <View style={styles.topRow}>
                 <View style={styles.avatar}>
                   <Text style={styles.avatarText}>
-                    {(selectedUser.name ||
-                      selectedUser.username)
+                    {(selectedUser.name || selectedUser.username)
                       .charAt(0)
                       .toUpperCase()}
                   </Text>
@@ -135,81 +176,41 @@ export default function Discover(props) {
 
                 <View style={{ flex: 1 }}>
                   <Text style={styles.modalName}>
-                    {selectedUser.name ||
-                      selectedUser.username}
+                    {selectedUser.name || selectedUser.username}
                   </Text>
 
                   <Text style={styles.username}>
                     @{selectedUser.username}
                   </Text>
-
                 </View>
               </View>
 
-              {/* STATS */}
-              <View style={styles.statsRow}>
-                <View style={styles.statBox}>
-                  <Text style={styles.statNumber}>
-                    {selectedUser.credits || 0}
-                  </Text>
-                  <Text style={styles.statLabel}>
-                    Credits
-                  </Text>
-                </View>
-
-                <View style={styles.statBox}>
-                  <Text style={styles.statNumber}>
-                    {selectedUser.teachedCount || 0}
-                  </Text>
-                  <Text style={styles.statLabel}>
-                    Taught
-                  </Text>
-                </View>
-
-                <View style={styles.statBox}>
-                  <Text style={styles.statNumber}>
-                    {selectedUser.learnedCount || 0}
-                  </Text>
-                  <Text style={styles.statLabel}>
-                    Learned
-                  </Text>
-                </View>
-              </View>
-
-              {/* DETAILS */}
-              <Text style={styles.section}>
-                @ Email
-              </Text>
+              <Text style={styles.section}>Email</Text>
               <Text style={styles.detail}>
-                {selectedUser.email ||
-                  'No email added'}
+                {selectedUser.email || 'No email added'}
               </Text>
 
-              <Text style={styles.section}>
-                ~ Skills They Teach
-              </Text>
+              <Text style={styles.section}>Skills They Teach</Text>
               <Text style={styles.detail}>
                 {teachSkills(selectedUser)}
               </Text>
 
-              <Text style={styles.section}>
-                ~ Skills They Want To Learn
-              </Text>
+              <Text style={styles.section}>Skills They Learn</Text>
               <Text style={styles.detail}>
                 {learnSkills(selectedUser)}
               </Text>
 
-              {/* ACTION BUTTONS */}
+              <Text style={styles.section}>Availability</Text>
+              <Text style={styles.detail}>
+                {formatAvailability(selectedUser.availability)}
+              </Text>
+
               <TouchableOpacity
                 style={styles.modalBtn}
-                onPress={() =>
-                  toggleConnect(selectedUser)
-                }
+                onPress={() => toggleConnect(selectedUser)}
               >
                 <Text style={styles.btnText}>
-                  {connections[
-                    selectedUser.username
-                  ]
+                  {connections[selectedUser.username]
                     ? 'X Cancel Request'
                     : ' Send Request ->'}
                 </Text>
@@ -217,14 +218,11 @@ export default function Discover(props) {
 
               <TouchableOpacity
                 style={styles.closeBtn}
-                onPress={() =>
-                  setSelectedUser(null)
-                }
+                onPress={() => setSelectedUser(null)}
               >
-                <Text style={styles.closeText}>
-                  Close
-                </Text>
+                <Text style={styles.closeText}>Close</Text>
               </TouchableOpacity>
+
             </View>
           )}
         </View>

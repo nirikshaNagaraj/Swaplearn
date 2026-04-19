@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 
 export default function Navbar({
+  user,
   isLoggedIn,
   goToLogin,
   goToRegister,
@@ -10,48 +11,53 @@ export default function Navbar({
   goToDiscover,
   goToMatch,
   goToProfile,
-  goToMessages, // ✅ IMPORTANT
+  goToMessages,
 }) {
+
+  // 🔥 SAFE LOGIN CHECK (FIXED)
+  const loggedIn = isLoggedIn || !!user;
+
   return (
     <View style={styles.navbar}>
 
       {/* LOGO */}
-      <TouchableOpacity onPress={goToHome}>
+      <TouchableOpacity onPress={() => goToHome?.()}>
         <Text style={styles.logo}>SwapLearn</Text>
       </TouchableOpacity>
 
       {/* MENU */}
       <View style={styles.menu}>
-        <Text style={styles.link} onPress={goToHome}>Home</Text>
-        <Text style={styles.link} onPress={goToAbout}>About</Text>
-        <Text style={styles.link} onPress={goToDiscover}>Discover</Text>
-        <Text style={styles.link} onPress={goToMatch}>Match</Text>
+        <Text style={styles.link} onPress={() => goToHome?.()}>Home</Text>
+        <Text style={styles.link} onPress={() => goToAbout?.()}>About</Text>
+        <Text style={styles.link} onPress={() => goToDiscover?.()}>Discover</Text>
+        <Text style={styles.link} onPress={() => goToMatch?.()}>Match</Text>
 
-        {/* ✅ SHOW ONLY WHEN LOGGED IN */}
-        {isLoggedIn && (
-          <Text style={styles.link} onPress={goToMessages}>
+        {loggedIn && (
+          <Text style={styles.link} onPress={() => goToMessages?.()}>
             Messages
           </Text>
         )}
       </View>
 
-      {/* RIGHT SIDE */}
+      {/* AUTH */}
       <View style={styles.auth}>
-        {!isLoggedIn ? (
+
+        {!loggedIn ? (
           <>
-            <TouchableOpacity onPress={goToLogin}>
+            <TouchableOpacity onPress={() => goToLogin?.()}>
               <Text style={styles.login}>Login</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.signupBtn} onPress={goToRegister}>
-              <Text style={styles.signupText}>Sign Up</Text>
+            <TouchableOpacity onPress={() => goToRegister?.()}>
+              <Text style={styles.signup}>Sign Up</Text>
             </TouchableOpacity>
           </>
         ) : (
-          <TouchableOpacity onPress={goToProfile}>
+          <TouchableOpacity onPress={() => goToProfile?.()}>
             <Text style={styles.profile}>Profile</Text>
           </TouchableOpacity>
         )}
+
       </View>
 
     </View>
@@ -76,12 +82,11 @@ const styles = StyleSheet.create({
 
   menu: {
     flexDirection: 'row',
-    gap: 20,
   },
 
   link: {
     color: 'white',
-    fontSize: 14,
+    marginHorizontal: 8,
   },
 
   auth: {
@@ -92,24 +97,15 @@ const styles = StyleSheet.create({
 
   login: {
     color: 'white',
-    fontSize: 14,
   },
 
-  signupBtn: {
-    backgroundColor: '#4CAF50',
-    paddingHorizontal: 15,
-    paddingVertical: 8,
-    borderRadius: 8,
-  },
-
-  signupText: {
-    color: '#fff',
+  signup: {
+    color: '#4CAF50',
     fontWeight: 'bold',
   },
 
   profile: {
     color: '#4CAF50',
     fontWeight: 'bold',
-    fontSize: 14,
   },
 });

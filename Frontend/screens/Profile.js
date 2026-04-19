@@ -20,9 +20,13 @@ export default function Profile({
   const [editMode, setEditMode] = useState(false);
   const [skills, setSkills] = useState([]);
 
+  // 🔥 FIX: grouped availability
+  const [availability, setAvailability] = useState([]);
+
   useEffect(() => {
     if (user) {
       loadSkills(user);
+      loadAvailability();
     }
   }, [user]);
 
@@ -42,6 +46,44 @@ export default function Profile({
     setSkills([...teach, ...learn]);
   };
 
+  // 🔥 FIX: fetch from backend and group correctly
+const loadAvailability = async () => {
+  try {
+    const res = await fetch(
+      `http://127.0.0.1:8000/api/get_calendar_slots/?username=${user.username}`
+    );
+
+    const data = await res.json();
+
+    console.log("AVAILABILITY RAW:", data);
+
+    const grouped = {};
+
+    data.forEach(item => {
+      const day = item.day;
+      const slots = item.slots || [];
+
+      if (!grouped[day]) {
+        grouped[day] = [];
+      }
+
+      grouped[day] = [...grouped[day], ...slots];
+    });
+
+    const formatted = Object.keys(grouped).map(day => ({
+      day,
+      slots: grouped[day]
+    }));
+
+    console.log("AVAILABILITY FINAL:", formatted);
+
+    setAvailability(formatted);
+
+  } catch (err) {
+    console.log("availability error:", err);
+  }
+};
+
   if (!user) {
     return (
       <View style={{ padding: 40 }}>
@@ -50,7 +92,6 @@ export default function Profile({
     );
   }
 
-  /* EDIT PAGE */
   if (editMode) {
     return (
       <EditProfile
@@ -59,14 +100,15 @@ export default function Profile({
         onSave={(updatedUser) => {
           setUser(updatedUser);
           loadSkills(updatedUser);
+          loadAvailability();
           setEditMode(false);
         }}
       />
     );
   }
 
-  const teachSkills = skills.filter((item) => item.type === 'teach');
-  const learnSkills = skills.filter((item) => item.type === 'learn');
+  const teachSkills = skills.filter((i) => i.type === 'teach');
+  const learnSkills = skills.filter((i) => i.type === 'learn');
 
   return (
     <ScrollView style={styles.container}>
@@ -81,15 +123,21 @@ export default function Profile({
         <Text style={styles.name}>
           {user.name || user.username}
         </Text>
+        <TouchableOpacity
+  style={styles.bell}
+  onPress={() => props.goToRequests?.()}
+>
+  <Text style={styles.bellText}>🔔</Text>
+</TouchableOpacity>
 
         {/* STATS */}
         <View style={styles.stats}>
-          <Stat number={user.credits || 10} label="Credits" />
-          <Stat number={user.learnedCount || 0} label="Learned" />
-          <Stat number={user.teachedCount || 0} label="Teached" />
-        </View>
+  <Stat number={user.credits || 0} label="Credits" />
+  <Stat number={user.learnedCount || 0} label="Learned" />
+  <Stat number={user.teachedCount || 0} label="Teached" />
+</View>
 
-        {/* ACTION BUTTONS */}
+        {/* ACTIONS */}
         <View style={styles.actions}>
           <TouchableOpacity
             style={styles.editBtn}
@@ -103,16 +151,10 @@ export default function Profile({
           </TouchableOpacity>
         </View>
 
-        {/* LOGOUT BUTTON */}
+        {/* LOGOUT */}
         <TouchableOpacity
           style={styles.logoutBtn}
-          onPress={() => {
-            console.log('Logout Clicked');
-
-            if (onLogout) {
-              onLogout();
-            }
-          }}
+          onPress={() => onLogout?.()}
         >
           <Text style={styles.logoutText}>Logout</Text>
         </TouchableOpacity>
@@ -120,58 +162,94 @@ export default function Profile({
 
       {/* TABS */}
       <View style={styles.tabs}>
-        <Tab
-          title="Skills"
-          active={activeTab === 'skills'}
-          onPress={() => setActiveTab('skills')}
-        />
-
-        <Tab
-          title="Teaching"
-          active={activeTab === 'teaching'}
-          onPress={() => setActiveTab('teaching')}
-        />
-
-        <Tab
-          title="Learning"
-          active={activeTab === 'learning'}
-          onPress={() => setActiveTab('learning')}
-        />
-
-        <Tab
-          title="Feedback"
-          active={activeTab === 'feedback'}
-          onPress={() => setActiveTab('feedback')}
-        />
+        <Tab title="Skills" active={activeTab === 'skills'} onPress={() => setActiveTab('skills')} />
+        <Tab title="Teaching" active={activeTab === 'teaching'} onPress={() => setActiveTab('teaching')} />
+        <Tab title="Learning" active={activeTab === 'learning'} onPress={() => setActiveTab('learning')} />
       </View>
 
       {/* CONTENT */}
       <View style={styles.section}>
+
         {activeTab === 'skills' && (
-          <SkillsSection
-            teachSkills={teachSkills}
-            learnSkills={learnSkills}
-          />
+          <View>
+
+            {/* LEARNING */}
+            <Text style={styles.sectionTitle}>I want to learn</Text>
+            <View style={styles.grid}>
+              {learnSkills.length === 0 ? (
+                <Text>No learning skills</Text>
+              ) : (
+                learnSkills.map((item, i) => (
+                  <SkillCard key={i} skill={item.skill_name} level={item.language} />
+                ))
+              )}
+            </View>
+
+            {/* TEACHING */}
+            <Text style={styles.sectionTitle}>I can teach</Text>
+            <View style={styles.grid}>
+              {teachSkills.length === 0 ? (
+                <Text>No teaching skills</Text>
+              ) : (
+                teachSkills.map((item, i) => (
+                  <SkillCard key={i} skill={item.skill_name} level={item.language} />
+                ))
+              )}
+            </View>
+
+            {/* ✅ FIXED AVAILABILITY */}
+            <Text style={styles.sectionTitle}>📅 Availability</Text>
+
+
+{availability?.length ? (
+  availability.map((item, i) => (
+    <View key={i} style={{ marginBottom: 10 }}>
+
+      <Text style={{ fontWeight: 'bold', color: '#151a3c' }}>
+        {item.day}
+      </Text>
+
+      <Text style={{ color: '#555', marginTop: 2 }}>
+        {item.slots?.length
+          ? item.slots.join(' • ')
+          : 'No slots'}
+      </Text>
+
+    </View>
+  ))
+) : (
+  <Text style={{ color: '#aaa' }}>
+    No availability set
+  </Text>
+)}
+
+            {/* BUTTON */}
+            <TouchableOpacity
+              style={styles.avlBtn}
+              onPress={() => {
+                props.goToAvailability?.({
+                  user,
+                  onSave: loadAvailability
+                });
+              }}
+            >
+              <Text style={styles.avlBtnText}>
+                📅 Set Availability
+              </Text>
+            </TouchableOpacity>
+
+          </View>
         )}
 
-        {activeTab === 'teaching' && (
-          <Empty title="No teaching sessions yet" />
-        )}
+        {activeTab === 'teaching' && <Text>No teaching sessions yet</Text>}
+        {activeTab === 'learning' && <Text>No learning sessions yet</Text>}
 
-        {activeTab === 'learning' && (
-          <Empty title="No learning sessions yet" />
-        )}
-
-        {activeTab === 'feedback' && (
-          <Empty title="No feedback yet" />
-        )}
       </View>
     </ScrollView>
   );
 }
 
 /* COMPONENTS */
-
 const Stat = ({ number, label }) => (
   <View style={styles.stat}>
     <Text style={styles.statNumber}>{number}</Text>
@@ -190,42 +268,6 @@ const Tab = ({ title, active, onPress }) => (
   </TouchableOpacity>
 );
 
-const SkillsSection = ({ teachSkills, learnSkills }) => (
-  <View>
-    <Text style={styles.sectionTitle}>I want to learn</Text>
-
-    <View style={styles.grid}>
-      {learnSkills.length === 0 ? (
-        <Text>No learning skills</Text>
-      ) : (
-        learnSkills.map((item, i) => (
-          <SkillCard
-            key={i}
-            skill={item.skill_name}
-            level={item.language}
-          />
-        ))
-      )}
-    </View>
-
-    <Text style={styles.sectionTitle}>I can teach</Text>
-
-    <View style={styles.grid}>
-      {teachSkills.length === 0 ? (
-        <Text>No teaching skills</Text>
-      ) : (
-        teachSkills.map((item, i) => (
-          <SkillCard
-            key={i}
-            skill={item.skill_name}
-            level={item.language}
-          />
-        ))
-      )}
-    </View>
-  </View>
-);
-
 const SkillCard = ({ skill, level }) => (
   <View style={styles.skillCard}>
     <Text style={styles.skill}>{skill}</Text>
@@ -233,174 +275,55 @@ const SkillCard = ({ skill, level }) => (
   </View>
 );
 
-const Empty = ({ title }) => (
-  <View style={styles.emptyBox}>
-    <Text style={{ color: '#888' }}>{title}</Text>
-  </View>
-);
-
-/* STYLES */
-
+/* STYLES (UNCHANGED) */
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f0f4f0',
-  },
+  container: { flex: 1, backgroundColor: '#f0f4f0' },
+  headerCard: { backgroundColor: '#151a3c', padding: 25, alignItems: 'center' },
+  avatar: { width: 90, height: 90, borderRadius: 45, backgroundColor: '#fff', justifyContent: 'center', alignItems: 'center' },
+  avatarText: { fontSize: 30 },
+  name: { color: '#fff', fontSize: 24, fontWeight: 'bold', marginTop: 10 },
+  stats: { flexDirection: 'row', gap: 30, marginTop: 18 },
+  stat: { alignItems: 'center' },
+  statNumber: { color: '#4CAF50', fontSize: 18, fontWeight: 'bold' },
+  statLabel: { color: '#ddd', fontSize: 13 },
+  actions: { flexDirection: 'row', gap: 15, marginTop: 18 },
+  editBtn: { backgroundColor: '#4CAF50', paddingHorizontal: 60, paddingVertical: 10, borderRadius: 22 },
+  shareBtn: { borderWidth: 1, borderColor: '#4CAF50', paddingHorizontal: 60, paddingVertical: 10, borderRadius: 22 },
+  editText: { color: '#fff', fontWeight: 'bold' },
+  shareText: { color: '#4CAF50', fontWeight: 'bold' },
+  logoutBtn: { marginTop: 10 },
+  logoutText: { color: '#ff6b6b', fontWeight: 'bold', fontSize: 13 },
+  tabs: { flexDirection: 'row', justifyContent: 'center', marginTop: 15, gap: 10 },
+  tab: { backgroundColor: '#ddd', paddingHorizontal: 15, paddingVertical: 8, borderRadius: 20 },
+  activeTab: { backgroundColor: '#4CAF50' },
+  tabText: { color: '#555' },
+  activeTabText: { color: '#fff' },
+  section: { padding: 20 },
+  sectionTitle: { fontWeight: 'bold', marginVertical: 10, color: '#151a3c' },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
+  skillCard: { backgroundColor: '#fff', width: '30%', padding: 14, borderRadius: 12, marginBottom: 10 },
+  skill: { fontWeight: 'bold', color: '#151a3c' },
+  level: { color: '#4CAF50', marginTop: 5 },
+avlBtn: {
+  marginTop: 20,
+  backgroundColor: '#151a3c',
+  paddingVertical: 12,
+  paddingHorizontal: 25,   // 👈 reduce width
+  borderRadius: 12,
+  alignSelf: 'flex-start', // 👈 important (prevents full stretch)
+  alignItems: 'center',
+},
+  avlBtnText: { color: '#fff', fontWeight: 'bold' },
+  bell: {
+  position: 'absolute',
+  top: 15,
+  right: 15,
+  padding: 10,
+  borderRadius: 25,
+  elevation: 5,
+},
 
-  headerCard: {
-    backgroundColor: '#151a3c',
-    padding: 25,
-    alignItems: 'center',
-  },
-
-  avatar: {
-    width: 90,
-    height: 90,
-    borderRadius: 45,
-    backgroundColor: '#fff',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-
-  avatarText: {
-    fontSize: 30,
-  },
-
-  name: {
-    color: '#fff',
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginTop: 10,
-  },
-
-  stats: {
-    flexDirection: 'row',
-    gap: 30,
-    marginTop: 18,
-  },
-
-  stat: {
-    alignItems: 'center',
-  },
-
-  statNumber: {
-    color: '#4CAF50',
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-
-  statLabel: {
-    color: '#ddd',
-    fontSize: 13,
-  },
-
-  actions: {
-    flexDirection: 'row',
-    gap: 15,
-    marginTop: 18,
-  },
-
-  editBtn: {
-    backgroundColor: '#4CAF50',
-    paddingHorizontal: 60,
-    paddingVertical: 10,
-    borderRadius: 22,
-  },
-
-  shareBtn: {
-    borderWidth: 1,
-    borderColor: '#4CAF50',
-    paddingHorizontal: 60,
-    paddingVertical: 10,
-    borderRadius: 22,
-  },
-
-  editText: {
-    color: '#fff',
-    fontWeight: 'bold',
-  },
-
-  shareText: {
-    color: '#4CAF50',
-    fontWeight: 'bold',
-  },
-
-
-
-  logoutText: {
-    color: '#cf4848',
-    fontWeight: 'bold',
-    fontSize :13,
-  },
-
-  tabs: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    flexWrap: 'wrap',
-    gap: 10,
-    marginTop: 15,
-  },
-
-  tab: {
-    backgroundColor: '#ddd',
-    paddingHorizontal: 15,
-    paddingVertical: 8,
-    borderRadius: 20,
-  },
-
-  activeTab: {
-    backgroundColor: '#4CAF50',
-  },
-
-  tabText: {
-    color: '#555',
-  },
-
-  activeTabText: {
-    color: '#fff',
-    fontWeight: 'bold',
-  },
-
-  section: {
-    padding: 20,
-  },
-
-  sectionTitle: {
-    fontWeight: 'bold',
-    fontSize: 16,
-    marginVertical: 10,
-    color: '#151a3c',
-  },
-
-  grid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-  },
-
-  skillCard: {
-    backgroundColor: '#fff',
-    width: '30%',
-    padding: 14,
-    borderRadius: 12,
-    marginBottom: 10,
-    elevation: 3,
-  },
-
-  skill: {
-    fontWeight: 'bold',
-    color: '#151a3c',
-  },
-
-  level: {
-    color: '#4CAF50',
-    marginTop: 5,
-  },
-
-  emptyBox: {
-    backgroundColor: '#fff',
-    padding: 25,
-    borderRadius: 12,
-    alignItems: 'center',
-  },
+bellText: {
+  fontSize: 18,
+}
 });
