@@ -1,11 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
   TouchableOpacity,
   StyleSheet,
   ScrollView,
+  Alert,
 } from 'react-native';
+
 import Navbar from './Navbar';
 import EditProfile from './EditProfile';
 
@@ -13,28 +15,71 @@ export default function ProfilePage({ user, setUser, ...props }) {
 
   const [activeTab, setActiveTab] = useState('skills');
   const [editMode, setEditMode] = useState(false);
+  const [skills, setSkills] = useState([]);
+
+  useEffect(() => {
+    if (user) loadSkills(user);
+  }, [user]);
+
+  const loadSkills = (userData) => {
+    const teach = (userData.teachSkills || []).map((item) => ({
+      type: 'teach',
+      skill_name: item.skill,
+      language: item.language,
+    }));
+
+    const learn = (userData.learnSkills || []).map((item) => ({
+      type: 'learn',
+      skill_name: item.skill,
+      language: item.language,
+    }));
+
+    setSkills([...teach, ...learn]);
+  };
+
+  // ✅ LOGOUT FUNCTION (CORRECT PLACE)
+  const handleLogout = () => {
+    console.log("🔥 LOGOUT CLICKED");
+
+    props.onLogout?.();   // call Index.js logout
+  };
+
+  // ✅ CONFIRM ALERT
+  const confirmLogout = () => {
+    Alert.alert(
+      "Logout",
+      "Do you want to logout?",
+      [
+        { text: "Cancel", style: "cancel" },
+        { text: "Logout", style: "destructive", onPress: handleLogout }
+      ]
+    );
+  };
 
   if (!user) {
     return (
-      <View style={{ padding: 50 }}>
-        <Text>Loading profile...</Text>
+      <View style={{ padding: 40 }}>
+        <Text>Loading...</Text>
       </View>
     );
   }
 
-  // ✅ EDIT MODE
   if (editMode) {
     return (
       <EditProfile
         user={user}
         onCancel={() => setEditMode(false)}
         onSave={(updatedUser) => {
-          setUser(updatedUser);
           setEditMode(false);
+          setUser({ ...updatedUser });
+          setTimeout(() => loadSkills(updatedUser), 0);
         }}
       />
     );
   }
+
+  const teachSkills = skills.filter(s => s.type === 'teach');
+  const learnSkills = skills.filter(s => s.type === 'learn');
 
   return (
     <ScrollView style={styles.container}>
@@ -43,6 +88,7 @@ export default function ProfilePage({ user, setUser, ...props }) {
 
       {/* HEADER */}
       <View style={styles.headerCard}>
+
         <View style={styles.avatar}>
           <Text style={styles.avatarText}>👤</Text>
         </View>
@@ -51,20 +97,16 @@ export default function ProfilePage({ user, setUser, ...props }) {
           {user.name || user.username}
         </Text>
 
-        <Text style={styles.bio}>
-          {user.bio || 'Passionate learner 🚀'}
-        </Text>
-
+        {/* STATS */}
         <View style={styles.stats}>
           <Stat number={user.credits || 0} label="Credits" />
-          <Stat number={user.learnSkills?.length || 0} label="Learning" />
-          <Stat number={user.teachSkills?.length || 0} label="Teaching" />
+          <Stat number={user.learnedCount || 0} label="Learned" />
+          <Stat number={user.teachedCount || 0} label="Teached" />
         </View>
 
         {/* ACTIONS */}
         <View style={styles.actions}>
 
-          {/* EDIT */}
           <TouchableOpacity
             style={styles.editBtn}
             onPress={() => setEditMode(true)}
@@ -72,20 +114,16 @@ export default function ProfilePage({ user, setUser, ...props }) {
             <Text style={styles.editText}>Edit</Text>
           </TouchableOpacity>
 
-          {/* SHARE */}
           <TouchableOpacity style={styles.shareBtn}>
             <Text style={styles.shareText}>Share</Text>
           </TouchableOpacity>
 
         </View>
 
-        {/* 🔥 HIDDEN LOGOUT (small + subtle) */}
+        {/* LOGOUT BUTTON (FIXED) */}
         <TouchableOpacity
           style={styles.logoutBtn}
-          onPress={() => {
-            setUser(null);
-            props.goToHome();
-          }}
+          onPress={confirmLogout}
         >
           <Text style={styles.logoutText}>Logout</Text>
         </TouchableOpacity>
@@ -102,17 +140,22 @@ export default function ProfilePage({ user, setUser, ...props }) {
 
       {/* CONTENT */}
       <View style={styles.section}>
-        {activeTab === 'skills' && <SkillsSection user={user} />}
-        {activeTab === 'teaching' && <SkillsList data={user.teachSkills} title="Teaching Skills" />}
-        {activeTab === 'learning' && <SkillsList data={user.learnSkills} title="Learning Skills" />}
-        {activeTab === 'feedback' && <Empty title="Feedback" />}
+
+        {activeTab === 'skills' && (
+          <SkillsSection teachSkills={teachSkills} learnSkills={learnSkills} />
+        )}
+
+        {activeTab === 'teaching' && <Empty title="No teaching sessions yet" />}
+        {activeTab === 'learning' && <Empty title="No learning sessions yet" />}
+        {activeTab === 'feedback' && <Empty title="No feedback yet" />}
+
       </View>
 
     </ScrollView>
   );
 }
 
-/* COMPONENTS */
+/* ================= COMPONENTS ================= */
 
 const Stat = ({ number, label }) => (
   <View style={styles.stat}>
@@ -123,8 +166,8 @@ const Stat = ({ number, label }) => (
 
 const Tab = ({ title, active, onPress }) => (
   <TouchableOpacity
-    onPress={onPress}
     style={[styles.tab, active && styles.activeTab]}
+    onPress={onPress}
   >
     <Text style={[styles.tabText, active && styles.activeTabText]}>
       {title}
@@ -132,94 +175,51 @@ const Tab = ({ title, active, onPress }) => (
   </TouchableOpacity>
 );
 
-/* SKILLS SECTION */
-
-const SkillsSection = ({ user }) => (
+const SkillsSection = ({ teachSkills, learnSkills }) => (
   <View>
 
     <Text style={styles.sectionTitle}>I want to learn</Text>
     <View style={styles.grid}>
-      {user.learnSkills?.length ? (
-        user.learnSkills.map((item, i) => (
-          <SkillCard key={i} skill={item.skill} level={item.language} />
-        ))
+      {learnSkills.length === 0 ? (
+        <Text>No learning skills</Text>
       ) : (
-        <Text>No skills added</Text>
+        learnSkills.map((item, i) => (
+          <SkillCard key={i} skill={item.skill_name} level={item.language} />
+        ))
       )}
     </View>
 
     <Text style={styles.sectionTitle}>I can teach</Text>
     <View style={styles.grid}>
-      {user.teachSkills?.length ? (
-        user.teachSkills.map((item, i) => (
-          <SkillCard key={i} skill={item.skill} level={item.language} />
-        ))
+      {teachSkills.length === 0 ? (
+        <Text>No teaching skills</Text>
       ) : (
-        <Text>No skills added</Text>
+        teachSkills.map((item, i) => (
+          <SkillCard key={i} skill={item.skill_name} level={item.language} />
+        ))
       )}
     </View>
 
   </View>
 );
 
-/* LIST VIEW */
-
-const SkillsList = ({ data, title }) => (
-  <View>
-    <Text style={styles.sectionTitle}>{title}</Text>
-
-    {data?.length ? (
-      data.map((item, i) => {
-
-        const skillName =
-          typeof item.skill === "object" ? item.skill.name : item.skill;
-
-        const languageName =
-          typeof item.language === "object" ? item.language.name : item.language;
-
-        return (
-          <View key={i} style={styles.skillCard}>
-            <Text style={styles.skill}>{skillName}</Text>
-            <Text style={styles.level}>{languageName}</Text>
-          </View>
-        );
-      })
-    ) : (
-      <Empty title={title} />
-    )}
+const SkillCard = ({ skill, level }) => (
+  <View style={styles.skillCard}>
+    <Text style={styles.skill}>{skill}</Text>
+    <Text style={styles.level}>{level}</Text>
   </View>
 );
-
-/* SAFE CARD */
-
-const SkillCard = ({ skill, level }) => {
-
-  const skillName =
-    typeof skill === "object" ? skill.name : skill;
-
-  const languageName =
-    typeof level === "object" ? level.name : level;
-
-  return (
-    <View style={styles.skillCard}>
-      <Text style={styles.skill}>{skillName}</Text>
-      <Text style={styles.level}>{languageName}</Text>
-    </View>
-  );
-};
 
 const Empty = ({ title }) => (
-  <View>
-    <Text style={styles.sectionTitle}>{title}</Text>
-    <View style={styles.emptyBox}>
-      <Text style={{ color: '#aaa' }}>Nothing here yet</Text>
-    </View>
+  <View style={styles.emptyBox}>
+    <Text style={{ color: '#888' }}>{title}</Text>
   </View>
 );
 
-/* STYLES */
+/* ================= STYLES ================= */
 
 const styles = StyleSheet.create({
+
   container: { flex: 1, backgroundColor: '#f0f4f0' },
 
   headerCard: {
@@ -241,85 +241,98 @@ const styles = StyleSheet.create({
 
   name: {
     color: '#fff',
-    fontSize: 22,
+    fontSize: 24,
     fontWeight: 'bold',
     marginTop: 10,
   },
 
-  bio: { color: '#ccc', marginTop: 5 },
-
   stats: {
     flexDirection: 'row',
     gap: 30,
-    marginTop: 15,
+    marginTop: 18,
   },
 
   stat: { alignItems: 'center' },
 
   statNumber: {
     color: '#4CAF50',
+    fontSize: 18,
     fontWeight: 'bold',
   },
 
-  statLabel: { color: '#ccc' },
+  statLabel: {
+    color: '#ddd',
+    fontSize: 13,
+  },
 
   actions: {
     flexDirection: 'row',
     gap: 15,
-    marginTop: 15,
+    marginTop: 18,
   },
 
   editBtn: {
     backgroundColor: '#4CAF50',
-    paddingHorizontal: 40,
+    paddingHorizontal: 60,
     paddingVertical: 10,
-    borderRadius: 20,
+    borderRadius: 22,
   },
 
   shareBtn: {
     borderWidth: 1,
     borderColor: '#4CAF50',
-    paddingHorizontal: 40,
+    paddingHorizontal: 60,
     paddingVertical: 10,
-    borderRadius: 20,
+    borderRadius: 22,
   },
 
   editText: { color: '#fff', fontWeight: 'bold' },
   shareText: { color: '#4CAF50', fontWeight: 'bold' },
 
-  /* 🔥 subtle logout */
   logoutBtn: {
-    marginTop: 8,
+    marginTop: 15,
+    backgroundColor: '#ef4444',
+    paddingHorizontal: 80,
+    paddingVertical: 10,
+    borderRadius: 22,
   },
 
   logoutText: {
-    color: '#888',
-    fontSize: 11,
+    color: '#fff',
+    fontWeight: 'bold',
   },
 
   tabs: {
     flexDirection: 'row',
     justifyContent: 'center',
-    marginTop: 15,
+    flexWrap: 'wrap',
     gap: 10,
+    marginTop: 15,
   },
 
   tab: {
-    paddingVertical: 8,
+    backgroundColor: '#ddd',
     paddingHorizontal: 15,
+    paddingVertical: 8,
     borderRadius: 20,
-    backgroundColor: '#e0e0e0',
   },
 
-  activeTab: { backgroundColor: '#4CAF50' },
+  activeTab: {
+    backgroundColor: '#4CAF50',
+  },
 
   tabText: { color: '#555' },
-  activeTabText: { color: '#fff' },
+
+  activeTabText: {
+    color: '#fff',
+    fontWeight: 'bold',
+  },
 
   section: { padding: 20 },
 
   sectionTitle: {
     fontWeight: 'bold',
+    fontSize: 16,
     marginVertical: 10,
     color: '#151a3c',
   },
@@ -333,19 +346,19 @@ const styles = StyleSheet.create({
   skillCard: {
     backgroundColor: '#fff',
     width: '30%',
-    padding: 15,
+    padding: 14,
     borderRadius: 12,
     marginBottom: 10,
+    elevation: 3,
   },
 
   skill: { fontWeight: 'bold', color: '#151a3c' },
-
   level: { color: '#4CAF50', marginTop: 5 },
 
   emptyBox: {
     backgroundColor: '#fff',
-    padding: 20,
-    borderRadius: 10,
+    padding: 25,
+    borderRadius: 12,
     alignItems: 'center',
   },
 });

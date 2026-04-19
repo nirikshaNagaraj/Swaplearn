@@ -1,166 +1,196 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
-  TouchableOpacity,
+  FlatList,
+  ActivityIndicator,
 } from 'react-native';
-import Navbar from './Navbar';
 
-export default function Match(props) {
+const MatchPage = () => {
+  const [data, setData] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const currentUser = {
-    teaches: 'Python',
-    learns: 'UI Design',
+  // 🔥 CHANGE THIS BASED ON YOUR BACKEND
+  const API = "http://10.0.2.2:8000"; 
+  // OR: http://192.168.x.x:8000 for real phone
+
+  useEffect(() => {
+    loadUsers();
+  }, []);
+
+  const loadUsers = async () => {
+    try {
+      const res = await fetch(`${API}/get-users/`);
+      const json = await res.json();
+
+      console.log("API RESPONSE:", json);
+
+      if (Array.isArray(json)) {
+        setData(json);
+      } else {
+        setData([]);
+      }
+
+    } catch (err) {
+      console.log("FETCH ERROR:", err);
+
+      // 🔥 fallback so UI NEVER stays blank
+      setData([
+        {
+          username: "demo",
+          name: "Demo User",
+          views: 2,
+          teachSkills: [{ skill: "React" }],
+          learnSkills: [{ skill: "AI" }]
+        }
+      ]);
+
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const users = [
-    { username: 'Rahul', teaches: 'UI Design', learns: 'Python' },
-    { username: 'Anjali', teaches: 'Dance', learns: 'Video Editing' },
-    { username: 'Sneha', teaches: 'UI Design', learns: 'Python' },
-  ];
+  const renderItem = ({ item }) => {
+    const name = item?.name || item?.username || "Unknown";
+    const views = item?.views ?? 0;
 
-  const matches = users.filter(
-    (u) =>
-      u.teaches === currentUser.learns &&
-      u.learns === currentUser.teaches
-  );
+    const teach = item?.teachSkills || [];
+    const learn = item?.learnSkills || [];
+
+    return (
+      <View style={styles.card}>
+
+        {/* name */}
+        <Text style={styles.name}>{name}</Text>
+
+        {/* views */}
+        <Text style={styles.views}>👁 {views} views</Text>
+
+        {/* teach */}
+        <Text style={styles.label}>Can Teach</Text>
+        <Text style={styles.text}>
+          {teach.length
+            ? teach.map(s => s.skill).join(' • ')
+            : 'Not added'}
+        </Text>
+
+        {/* learn */}
+        <Text style={styles.label}>Wants to Learn</Text>
+        <Text style={styles.text}>
+          {learn.length
+            ? learn.map(s => s.skill).join(' • ')
+            : 'Not added'}
+        </Text>
+
+      </View>
+    );
+  };
+
+  if (loading) {
+    return (
+      <View style={styles.loading}>
+        <ActivityIndicator size="large" color="#000" />
+      </View>
+    );
+  }
 
   return (
-    <ScrollView style={styles.container}>
-      <Navbar {...props} />
+    <View style={styles.container}>
 
-      <Text style={styles.title}>Best Matches</Text>
+      <Text style={styles.title}>Discover People</Text>
+      <Text style={styles.subtitle}>All users in Swaplearn</Text>
 
-      {matches.length === 0 ? (
-        <Text style={styles.noMatch}>No matches found</Text>
-      ) : (
-        <View style={styles.grid}>
-          {matches.map((user, index) => (
-            <View key={index} style={styles.card}>
+      {/* DEBUG LINE (VERY IMPORTANT) */}
+      <Text style={styles.debug}>
+        Users Loaded: {data.length}
+      </Text>
 
-              <Text style={styles.username}>{user.username}</Text>
+      <FlatList
+        data={data}
+        keyExtractor={(item, index) => index.toString()}
+        renderItem={renderItem}
+        contentContainerStyle={{ paddingBottom: 20 }}
+        ListEmptyComponent={
+          <Text style={styles.empty}>No users found</Text>
+        }
+      />
 
-              <View style={styles.matchBadge}>
-                <Text style={styles.matchText}>Perfect Match</Text>
-              </View>
-
-              <View style={styles.tag}>
-                <Text style={styles.tagText}>Teaches: {user.teaches}</Text>
-              </View>
-
-              <View style={styles.tagAlt}>
-                <Text style={styles.tagTextAlt}>Learns: {user.learns}</Text>
-              </View>
-
-              <TouchableOpacity
-                style={styles.connectBtn}
-                onPress={() => {
-                  if (!props.isLoggedIn) props.goToLogin();
-                  else alert('Matched & Connected!');
-                }}
-              >
-                <Text style={styles.connectText}>Connect</Text>
-              </TouchableOpacity>
-
-            </View>
-          ))}
-        </View>
-      )}
-    </ScrollView>
+    </View>
   );
-}
+};
+
+export default MatchPage;
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f0f4f0',
+    backgroundColor: '#f6f7fb',
+    padding: 14,
   },
 
   title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    marginVertical: 20,
-    color: '#151a3c',
+    fontSize: 24,
+    fontWeight: '800',
+    color: '#111',
   },
 
-  noMatch: {
-    textAlign: 'center',
-    marginTop: 20,
-    color: 'gray',
+  subtitle: {
+    fontSize: 13,
+    color: '#777',
+    marginBottom: 10,
   },
 
-  grid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'center',
+  debug: {
+    fontSize: 12,
+    color: 'red',
+    marginBottom: 10,
   },
 
   card: {
     backgroundColor: '#fff',
-    width: 240,
-    padding: 20,
-    margin: 12,
-    borderRadius: 15,
-    elevation: 5,
+    padding: 16,
+    borderRadius: 14,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#eee',
   },
 
-  username: {
+  name: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: '#151a3c',
-    marginBottom: 8,
+    fontWeight: '700',
+    color: '#111',
   },
 
-  matchBadge: {
-    backgroundColor: '#4CAF50',
-    padding: 5,
-    borderRadius: 6,
-    alignSelf: 'flex-start',
-    marginBottom: 8,
+  views: {
+    fontSize: 12,
+    color: '#666',
+    marginTop: 4,
   },
 
-  matchText: {
-    color: '#fff',
+  label: {
     fontSize: 11,
-    fontWeight: 'bold',
+    fontWeight: '700',
+    color: '#aaa',
+    marginTop: 10,
+    textTransform: 'uppercase',
   },
 
-  tag: {
-    backgroundColor: '#151a3c',
-    padding: 6,
-    borderRadius: 8,
-    marginBottom: 6,
+  text: {
+    fontSize: 14,
+    color: '#333',
+    marginTop: 4,
   },
 
-  tagAlt: {
-    backgroundColor: '#4CAF50',
-    padding: 6,
-    borderRadius: 8,
-    marginBottom: 10,
-  },
-
-  tagText: {
-    color: '#fff',
-    fontSize: 12,
-  },
-
-  tagTextAlt: {
-    color: '#fff',
-    fontSize: 12,
-  },
-
-  connectBtn: {
-    backgroundColor: '#151a3c',
-    padding: 10,
-    borderRadius: 10,
+  loading: {
+    flex: 1,
+    justifyContent: 'center',
     alignItems: 'center',
   },
 
-  connectText: {
-    color: '#fff',
-    fontWeight: 'bold',
+  empty: {
+    textAlign: 'center',
+    marginTop: 50,
+    color: '#999',
   },
 });

@@ -5,6 +5,7 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  Modal,
 } from 'react-native';
 import Navbar from './Navbar';
 import { API } from '../../api';
@@ -12,9 +13,10 @@ import { API } from '../../api';
 export default function Discover(props) {
 
   const [users, setUsers] = useState([]);
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [connections, setConnections] = useState({});
 
   useEffect(() => {
-    console.log("DISCOVER OPENED ✅"); // 🔥 debug
     fetchUsers();
   }, []);
 
@@ -22,18 +24,15 @@ export default function Discover(props) {
     try {
       const res = await fetch(`${API}/users/`);
       const data = await res.json();
-
-      console.log("USERS:", data);
       setUsers(data);
-
     } catch (err) {
-      console.log("ERROR:", err);
-
-      // 🔥 fallback test data (prevents blank screen)
       setUsers([
         {
           username: "testuser",
           name: "Test User",
+          credits: 120,
+          teachedCount: 5,
+          learnedCount: 3,
           teachSkills: [{ skill: "React" }],
           learnSkills: [{ skill: "Python" }]
         }
@@ -41,124 +40,328 @@ export default function Discover(props) {
     }
   };
 
+  // ✅ CONNECT / CANCEL (LOGIN PROTECTED)
+  const toggleConnect = (user) => {
+
+    if (!props.isLoggedIn) {
+      props.goToLogin();
+      return;
+    }
+
+    const status = connections[user.username];
+
+    if (!status) {
+      setConnections(prev => ({
+        ...prev,
+        [user.username]: 'pending'
+      }));
+    } else {
+      const updated = { ...connections };
+      delete updated[user.username];
+      setConnections(updated);
+    }
+  };
+
+  const statusText = (status) => {
+    if (status === 'pending') return 'Request Sent ⏳';
+    if (status === 'connected') return 'Connected 🤝';
+    return '';
+  };
+
   return (
     <ScrollView style={styles.container}>
 
-      {/* ✅ FIXED NAVBAR */}
-      <Navbar
-        isLoggedIn={props.isLoggedIn}
-        goToHome={props.goToHome}
-        goToAbout={props.goToAbout}
-        goToDiscover={props.goToDiscover}
-        goToMatch={props.goToMatch}
-        goToMessages={props.goToMessages}
-        goToProfile={props.goToProfile}
-        goToLogin={props.goToLogin}
-        goToRegister={props.goToRegister}
-      />
+      <Navbar {...props} />
 
       <Text style={styles.title}>Discover People</Text>
 
-      {/* ✅ SAFE RENDER */}
-      {users?.length === 0 ? (
-        <Text style={{ textAlign: 'center' }}>No users found</Text>
-      ) : (
-        <View style={styles.grid}>
-          {users.map((user, index) => (
+      <View style={styles.grid}>
+
+        {users.map((user, index) => {
+
+          const status = connections[user.username];
+
+          return (
             <View key={index} style={styles.card}>
 
-              <Text style={styles.username}>
+              {/* NAME */}
+              <Text style={styles.name}>
                 {user.name || user.username}
               </Text>
 
-              <Text style={styles.skill}>
-                Teaches: {
-                  user.teachSkills?.length
-                    ? user.teachSkills.map(s => s.skill).join(', ')
-                    : 'None'
-                }
+              {/* QUICK STATS */}
+              <Text style={styles.smallText}>
+                💰 Credits: {user.credits || 0}
               </Text>
 
-              <Text style={styles.skill}>
-                Learns: {
-                  user.learnSkills?.length
-                    ? user.learnSkills.map(s => s.skill).join(', ')
-                    : 'None'
-                }
+              <Text style={styles.smallText}>
+                🧑‍🏫 Teached: {user.teachedCount || 0}
               </Text>
 
+              <Text style={styles.smallText}>
+                📚 Learned: {user.learnedCount || 0}
+              </Text>
+
+              {/* VIEW PROFILE */}
               <TouchableOpacity
-                style={styles.connectBtn}
+                style={styles.viewBtn}
+                onPress={() => setSelectedUser(user)}
+              >
+                <Text style={styles.btnText}>👁 View Profile</Text>
+              </TouchableOpacity>
+
+              {/* CONNECT BUTTON */}
+              <TouchableOpacity
+                style={[
+                  props.isLoggedIn ? styles.connectBtn : styles.disabledBtn
+                ]}
+                onPress={() => toggleConnect(user)}
+              >
+                <Text style={styles.btnText}>
+                  {status ? "❌ Cancel Request" : "🤝 Connect"}
+                </Text>
+              </TouchableOpacity>
+
+              {status && (
+                <Text style={styles.status}>
+                  {statusText(status)}
+                </Text>
+              )}
+
+            </View>
+          );
+        })}
+
+      </View>
+
+      {/* PROFILE MODAL */}
+      <Modal visible={!!selectedUser} animationType="slide">
+
+        <View style={styles.modalContainer}>
+
+          {selectedUser && (
+            <View style={styles.modalCard}>
+
+              <Text style={styles.modalName}>
+                {selectedUser.name || selectedUser.username}
+              </Text>
+
+              {/* STATS */}
+              <View style={styles.statsBox}>
+
+                <View style={styles.stat}>
+                  <Text style={styles.statNumber}>
+                    {selectedUser.credits || 0}
+                  </Text>
+                  <Text style={styles.statLabel}>Credits</Text>
+                </View>
+
+                <View style={styles.stat}>
+                  <Text style={styles.statNumber}>
+                    {selectedUser.teachedCount || 0}
+                  </Text>
+                  <Text style={styles.statLabel}>Taught</Text>
+                </View>
+
+                <View style={styles.stat}>
+                  <Text style={styles.statNumber}>
+                    {selectedUser.learnedCount || 0}
+                  </Text>
+                  <Text style={styles.statLabel}>Learned</Text>
+                </View>
+
+              </View>
+
+              {/* SKILLS */}
+              <Text style={styles.section}>Skills</Text>
+
+              <Text style={styles.modalText}>
+                🧑‍🏫 Teaches: {selectedUser.teachSkills?.map(s => s.skill).join(', ') || 'None'}
+              </Text>
+
+              <Text style={styles.modalText}>
+                📚 Learns: {selectedUser.learnSkills?.map(s => s.skill).join(', ') || 'None'}
+              </Text>
+
+              {/* CONNECT INSIDE MODAL */}
+              <TouchableOpacity
+                style={[
+                  props.isLoggedIn ? styles.modalBtn : styles.disabledBtn
+                ]}
                 onPress={() => {
-                  if (!props.isLoggedIn) props.goToLogin();
-                  else alert('Connected!');
+
+                  if (!props.isLoggedIn) {
+                    setSelectedUser(null);
+                    props.goToLogin();
+                    return;
+                  }
+
+                  toggleConnect(selectedUser);
                 }}
               >
-                <Text style={styles.connectText}>Connect</Text>
+                <Text style={styles.btnText}>
+                  {connections[selectedUser.username]
+                    ? "❌ Cancel Request"
+                    : "🤝 Send Request"}
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity onPress={() => setSelectedUser(null)}>
+                <Text style={styles.close}>Close</Text>
               </TouchableOpacity>
 
             </View>
-          ))}
+          )}
+
         </View>
-      )}
+
+      </Modal>
 
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
+
   container: {
     flex: 1,
-    backgroundColor: '#f0f4f0',
+    backgroundColor: '#f6f8fb',
   },
 
   title: {
     fontSize: 28,
-    fontWeight: 'bold',
+    fontWeight: '900',
     margin: 20,
-    color: '#151a3c',
   },
 
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
-    paddingHorizontal: 10,
+    paddingHorizontal: 12,
   },
 
   card: {
-    width: '30%',
-    backgroundColor: 'white',
-    padding: 15,
-    marginBottom: 15,
-    borderRadius: 12,
+    width: '31%',
+    backgroundColor: '#fff',
+    padding: 12,
+    borderRadius: 16,
+    marginBottom: 12,
     elevation: 3,
   },
 
-  username: {
+  name: {
     fontSize: 16,
-    fontWeight: 'bold',
-    color: '#151a3c',
-    marginBottom: 8,
+    fontWeight: '900',
+    marginBottom: 6,
   },
 
-  skill: {
-    fontSize: 13,
+  smallText: {
+    fontSize: 11,
     color: '#555',
-    marginTop: 2,
   },
 
-  connectBtn: {
-    marginTop: 10,
-    backgroundColor: '#4CAF50',
+  viewBtn: {
+    marginTop: 8,
+    backgroundColor: '#6366f1',
     padding: 8,
-    borderRadius: 8,
+    borderRadius: 10,
     alignItems: 'center',
   },
 
-  connectText: {
-    color: 'white',
-    fontWeight: 'bold',
-    fontSize: 12,
+  connectBtn: {
+    marginTop: 6,
+    backgroundColor: '#22c55e',
+    padding: 8,
+    borderRadius: 10,
+    alignItems: 'center',
   },
+
+  disabledBtn: {
+    marginTop: 6,
+    backgroundColor: '#9ca3af',
+    padding: 8,
+    borderRadius: 10,
+    alignItems: 'center',
+    opacity: 0.6,
+  },
+
+  btnText: {
+    color: 'white',
+    fontWeight: '800',
+    fontSize: 11,
+  },
+
+  status: {
+    fontSize: 10,
+    marginTop: 4,
+    color: '#6b7280',
+  },
+
+  modalContainer: {
+    flex: 1,
+    backgroundColor: '#0f172a',
+    justifyContent: 'center',
+    padding: 20,
+  },
+
+  modalCard: {
+    backgroundColor: 'white',
+    borderRadius: 20,
+    padding: 20,
+  },
+
+  modalName: {
+    fontSize: 24,
+    fontWeight: '900',
+    marginBottom: 15,
+  },
+
+  statsBox: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginBottom: 20,
+  },
+
+  stat: {
+    alignItems: 'center',
+  },
+
+  statNumber: {
+    fontSize: 20,
+    fontWeight: '900',
+  },
+
+  statLabel: {
+    fontSize: 11,
+    color: '#6b7280',
+  },
+
+  section: {
+    fontSize: 14,
+    fontWeight: '800',
+    marginBottom: 6,
+  },
+
+  modalText: {
+    fontSize: 13,
+    marginBottom: 6,
+    color: '#374151',
+  },
+
+  modalBtn: {
+    marginTop: 15,
+    backgroundColor: '#22c55e',
+    padding: 12,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+
+  close: {
+    marginTop: 12,
+    textAlign: 'center',
+    color: '#ef4444',
+    fontWeight: '800',
+  },
+
 });
