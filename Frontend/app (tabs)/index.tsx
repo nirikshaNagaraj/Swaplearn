@@ -6,29 +6,40 @@ import Discover from '../screens/Discover';
 import Match from '../screens/Match';
 import Login from '../screens/Login';
 import Register from '../screens/Register';
-import Profile from '../screens/Profile';   // ✅ FIXED
+import Profile from '../screens/Profile';
 import Messages from '../screens/Messages';
+import Availability from '../screens/Availability';
+import Requests from '../screens/Requests';
 
 export default function Index() {
   const [screen, setScreen] = useState('home');
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [user, setUser] = useState(null);
 
-  /* LOGIN SUCCESS */
+  const isLoggedIn = user !== null;
+
   const handleLoginSuccess = (userData) => {
-    setIsLoggedIn(true);
     setUser(userData);
+    setScreen('profile');   // always go profile after login
+  };
+
+  const handleLogout = () => {
+    setUser(null);
     setScreen('home');
   };
 
-  /* LOGOUT */
-  const handleLogout = () => {
-    setIsLoggedIn(false);
-    setUser(null);
-    setScreen('home'); // back to homepage
+  const commonProps = {
+    user,
+    isLoggedIn,
+    goToLogin: () => setScreen('login'),
+    goToRegister: () => setScreen('register'),
+    goToHome: () => setScreen('home'),
+    goToAbout: () => setScreen('about'),
+    goToDiscover: () => setScreen('discover'),
+    goToMatch: () => setScreen('match'),
+    goToProfile: () => setScreen('profile'),
+    goToMessages: () => setScreen('messages'),
   };
 
-  /* LOGIN SCREEN */
   if (screen === 'login') {
     return (
       <Login
@@ -39,7 +50,6 @@ export default function Index() {
     );
   }
 
-  /* REGISTER SCREEN */
   if (screen === 'register') {
     return (
       <Register
@@ -49,105 +59,43 @@ export default function Index() {
     );
   }
 
-  /* PROFILE SCREEN */
   if (screen === 'profile') {
     return (
-     <Profile
-  user={user}
-  setUser={setUser}
-  isLoggedIn={isLoggedIn}
-  onLogout={handleLogout}
-  goToHome={() => setScreen('home')}
-  goToAbout={() => setScreen('about')}
-  goToDiscover={() => setScreen('discover')}
-  goToMatch={() => setScreen('match')}
-  goToMessages={() => setScreen('messages')}
-  goToProfile={() => setScreen('profile')}
-/>
+      <Profile
+        {...commonProps}
+        setUser={setUser}
+        onLogout={handleLogout}
+        goToAvailability={() => setScreen('availability')}
+        goToRequests={() => setScreen('requests')} 
+      />
     );
   }
 
-  /* MESSAGES SCREEN */
   if (screen === 'messages') {
+    return <Messages {...commonProps} />;
+  }
+
+  if (screen === 'about') return <About {...commonProps} />;
+  if (screen === 'discover') return <Discover {...commonProps} />;
+  if (screen === 'match') return <Match {...commonProps} />;
+
+  if (screen === 'availability') {
     return (
-      <Messages
+      <Availability
         user={user}
-        isLoggedIn={isLoggedIn}
-        goToHome={() => setScreen('home')}
-        goToAbout={() => setScreen('about')}
-        goToDiscover={() => setScreen('discover')}
-        goToMatch={() => setScreen('match')}
-        goToProfile={() => setScreen('profile')}
-        goToMessages={() => setScreen('messages')}
+        setUser={setUser}
+        goBack={() => setScreen('profile')}
       />
     );
   }
-
-  /* ABOUT SCREEN */
-  if (screen === 'about') {
-    return (
-      <About
-        user={user}
-        isLoggedIn={isLoggedIn}
-        goToHome={() => setScreen('home')}
-        goToAbout={() => setScreen('about')}
-        goToDiscover={() => setScreen('discover')}
-        goToMatch={() => setScreen('match')}
-        goToLogin={() => setScreen('login')}
-        goToRegister={() => setScreen('register')}
-        goToProfile={() => setScreen('profile')}
-      />
-    );
-  }
-
-  /* DISCOVER SCREEN */
-  if (screen === 'discover') {
-    return (
-      <Discover
-        user={user}
-        isLoggedIn={isLoggedIn}
-        goToHome={() => setScreen('home')}
-        goToAbout={() => setScreen('about')}
-        goToDiscover={() => setScreen('discover')}
-        goToMatch={() => setScreen('match')}
-        goToLogin={() => setScreen('login')}
-        goToRegister={() => setScreen('register')}
-        goToProfile={() => setScreen('profile')}
-        goToMessages={() => setScreen('messages')}
-      />
-    );
-  }
-
-  /* MATCH SCREEN */
-  if (screen === 'match') {
-    return (
-      <Match
-        user={user}
-        isLoggedIn={isLoggedIn}
-        goToHome={() => setScreen('home')}
-        goToAbout={() => setScreen('about')}
-        goToDiscover={() => setScreen('discover')}
-        goToMatch={() => setScreen('match')}
-        goToLogin={() => setScreen('login')}
-        goToRegister={() => setScreen('register')}
-        goToProfile={() => setScreen('profile')}
-      />
-    );
-  }
-
-  /* HOME SCREEN */
+  if (screen === 'requests') {
   return (
-    <Home
+    <Requests
       user={user}
-      isLoggedIn={isLoggedIn}
-      goToLogin={() => setScreen('login')}
-      goToRegister={() => setScreen('register')}
-      goToHome={() => setScreen('home')}
-      goToAbout={() => setScreen('about')}
-      goToDiscover={() => setScreen('discover')}
-      goToMatch={() => setScreen('match')}
-      goToMessages={() => setScreen('messages')}
-      goToProfile={() => setScreen('profile')}
+      goBack={() => setScreen('profile')}
     />
   );
+}
+
+  return <Home {...commonProps} />;
 }
