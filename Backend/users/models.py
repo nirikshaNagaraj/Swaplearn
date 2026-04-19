@@ -41,4 +41,16 @@ class UserSkill(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     skill = models.CharField(max_length=100)
     language = models.CharField(max_length=100)
-    type = models.CharField(max_length=10)   # teach / learn
+    type = models.CharField(max_length=10) 
+    
+class Availability(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    day = models.CharField(max_length=20)
+    time = models.CharField(max_length=20)
+class Request(models.Model):
+    sender = models.ForeignKey(User, on_delete=models.CASCADE, related_name="sent_requests")
+    receiver = models.ForeignKey(User, on_delete=models.CASCADE, related_name="received_requests")
+    skill = models.CharField(max_length=100, default="General")
+    language = models.CharField(max_length=100, default="English")
+    status = models.CharField(max_length=20, default="pending")  # pending / accepted / rejected
+    created_at = models.DateTimeField(auto_now_add=True)

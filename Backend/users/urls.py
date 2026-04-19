@@ -7,6 +7,12 @@ from .views import (
     metadata,
     get_matches,
     complete_session,
+    save_calendar_slots,
+    get_calendar_slots,
+    send_request,
+    get_requests,
+    accept_request,
+    reject_request
 )
 
 urlpatterns = [
@@ -17,4 +23,12 @@ urlpatterns = [
     path('metadata/', metadata),
     path('matches/', get_matches),
     path('complete_session/', complete_session),
+    path('save_calendar_slots/', save_calendar_slots),
+    path('get_calendar_slots/', get_calendar_slots),
+
+    # ✅ REQUEST SYSTEM
+    path('send-request/', send_request),
+    path('requests/<int:user_id>/', get_requests),
+    path('accept-request/', accept_request),
+    path('reject-request/', reject_request),
 ]
