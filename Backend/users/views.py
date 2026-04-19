@@ -1,175 +1,287 @@
-from rest_framework.decorators import api_view
-from rest_framework.response import Response
-from .models import User, Skill, Language, UserSkill, Category
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+import json
+
+from .models import User, Category, Skill, Language, UserSkill
 
 
-# ✅ METADATA
-@api_view(['GET'])
-def get_metadata(request):
-    categories = Category.objects.all()
-    skills = Skill.objects.all()
-    languages = Language.objects.all()
-
-    data = []
-
-    for cat in categories:
-        cat_skills = skills.filter(category=cat.name)
-        data.append({
-            "name": cat.name,
-            "skills": [s.name for s in cat_skills]
-        })
-
-    return Response({
-        "categories": data,
-        "languages": [l.name for l in languages]
-    })
-
-
-# ✅ REGISTER
-@api_view(['POST'])
-def register(request):
-    data = request.data
-
-    user = User(
-        username=data['username'],
-        name=data.get('name', ''),
-        email=data.get('email', '')
-    )
-
-    # ✅ HASH PASSWORD
-    user.set_password(data['password'])
-    user.save()
-
-    # SAVE SKILLS
-    for item in data.get('teachSkills', []):
-        UserSkill.objects.create(
-            user=user,
-            skill=item['skill'],
-            language=item['language'],
-            type='teach'
-        )
-
-    for item in data.get('learnSkills', []):
-        UserSkill.objects.create(
-            user=user,
-            skill=item['skill'],
-            language=item['language'],
-            type='learn'
-        )
-
-    return Response({"message": "User created"})
-
-
-@api_view(['POST'])
-def login_user(request):
-    data = request.data
-
-    try:
-        user = User.objects.get(username=data['username'])
-
-        # ✅ CHECK HASHED PASSWORD
-        if not user.check_password(data['password']):
-            return Response({"error": "Invalid credentials"}, status=400)
-
-        skills = UserSkill.objects.filter(user=user)
-
-        teachSkills = []
-        learnSkills = []
-
-        for s in skills:
-            skill_data = {
-                "skill": s.skill,
-                "language": s.language
-            }
-
-            if s.type == 'teach':
-                teachSkills.append(skill_data)
-            else:
-                learnSkills.append(skill_data)
-
-        return Response({
-            "username": user.username,
-            "name": user.name,
-            "email": user.email,
-            "teachSkills": teachSkills,
-            "learnSkills": learnSkills
-        })
-
-    except User.DoesNotExist:
-        return Response({"error": "Invalid credentials"}, status=400)
-    
-@api_view(['GET'])
-def get_users(request):
+# =====================================================
+# USERS LIST
+# =====================================================
+def users_list(request):
     users = User.objects.all()
-
     result = []
 
     for user in users:
-        skills = UserSkill.objects.filter(user=user)
-
-        teachSkills = []
-        learnSkills = []
-
-        for s in skills:
-            skill_data = {
-                "skill": s.skill,
-                "language": s.language
-            }
-
-            if s.type == 'teach':
-                teachSkills.append(skill_data)
-            else:
-                learnSkills.append(skill_data)
+        teach = UserSkill.objects.filter(user=user, type="teach")
+        learn = UserSkill.objects.filter(user=user, type="learn")
 
         result.append({
             "username": user.username,
             "name": user.name,
-            "teachSkills": teachSkills,
-            "learnSkills": learnSkills
+            "email": user.email,
+            "bio": user.bio,
+            "credits": user.credits,
+            "views": user.views,
+
+            "teachedCount": user.teachedCount,
+            "learnedCount": user.learnedCount,
+
+            "teachSkills": [
+                {"skill": x.skill, "language": x.language}
+                for x in teach
+            ],
+
+            "learnSkills": [
+                {"skill": x.skill, "language": x.language}
+                for x in learn
+            ],
         })
 
-    return Response(result)
+    return JsonResponse(result, safe=False)
 
 
-@api_view(['PUT'])
+# =====================================================
+# LOGIN
+# =====================================================
+@csrf_exempt
+def login_user(request):
+    if request.method != "POST":
+        return JsonResponse({"error": "POST required"}, status=400)
+
+    body = json.loads(request.body)
+
+    username = body.get("username")
+    password = body.get("password")
+
+    user = User.objects.filter(username=username).first()
+
+    if not user:
+        return JsonResponse({"error": "Invalid credentials"}, status=400)
+
+    if not user.check_password(password):
+        return JsonResponse({"error": "Invalid credentials"}, status=400)
+
+    teach = UserSkill.objects.filter(user=user, type="teach")
+    learn = UserSkill.objects.filter(user=user, type="learn")
+
+    return JsonResponse({
+        "username": user.username,
+        "name": user.name,
+        "email": user.email,
+        "bio": user.bio,
+        "credits": user.credits,
+        "views": user.views,
+
+        "teachedCount": user.teachedCount,
+        "learnedCount": user.learnedCount,
+
+        "teachSkills": [
+            {"skill": x.skill, "language": x.language}
+            for x in teach
+        ],
+
+        "learnSkills": [
+            {"skill": x.skill, "language": x.language}
+            for x in learn
+        ],
+    })
+
+
+# =====================================================
+# REGISTER
+# =====================================================
+@csrf_exempt
+def register_user(request):
+    if request.method != "POST":
+        return JsonResponse({"error": "POST required"}, status=400)
+
+    body = json.loads(request.body)
+
+    username = body.get("username")
+    password = body.get("password")
+    name = body.get("name", "")
+    email = body.get("email", "")
+
+    teachSkills = body.get("teachSkills", [])
+    learnSkills = body.get("learnSkills", [])
+
+    if User.objects.filter(username=username).exists():
+        return JsonResponse({"error": "Username already exists"}, status=400)
+
+    user = User(
+        username=username,
+        name=name,
+        email=email,
+        teachedCount=0,
+        learnedCount=0
+    )
+
+    user.set_password(password)
+    user.save()
+
+    for item in teachSkills:
+        UserSkill.objects.create(
+            user=user,
+            skill=item["skill"],
+            language=item["language"],
+            type="teach"
+        )
+
+    for item in learnSkills:
+        UserSkill.objects.create(
+            user=user,
+            skill=item["skill"],
+            language=item["language"],
+            type="learn"
+        )
+
+    return JsonResponse({"message": "Registered Successfully"})
+
+
+# =====================================================
+# UPDATE PROFILE
+# =====================================================
+@csrf_exempt
 def update_profile(request):
-    data = request.data
+    if request.method != "PUT":
+        return JsonResponse({"error": "PUT required"}, status=400)
 
-    try:
-        user = User.objects.get(username=data['username'])
+    body = json.loads(request.body)
 
-        # UPDATE BASIC INFO
-        user.name = data.get('name', user.name)
-        user.email = data.get('email', user.email)
+    username = body.get("username")
 
-        # OPTIONAL PASSWORD CHANGE
-        if data.get('password'):
-            user.set_password(data['password'])
+    user = User.objects.filter(username=username).first()
 
-        user.save()
+    if not user:
+        return JsonResponse({"error": "User not found"}, status=404)
 
-        # DELETE OLD SKILLS
-        UserSkill.objects.filter(user=user).delete()
+    user.name = body.get("name", user.name)
+    user.email = body.get("email", user.email)
+    user.bio = body.get("bio", user.bio)
+    user.save()
 
-        # SAVE NEW TEACH SKILLS
-        for item in data.get('teachSkills', []):
-            UserSkill.objects.create(
+    return JsonResponse({"message": "Updated"})
+
+
+# =====================================================
+# METADATA
+# =====================================================
+def metadata(request):
+    categories = Category.objects.all()
+    languages = Language.objects.all()
+
+    result = []
+
+    for cat in categories:
+        skills = Skill.objects.filter(category=cat.name)
+
+        result.append({
+            "name": cat.name,
+            "skills": [x.name for x in skills]
+        })
+
+    return JsonResponse({
+        "categories": result,
+        "languages": [x.name for x in languages]
+    })
+
+
+# =====================================================
+# MATCHES
+# =====================================================
+def get_matches(request):
+    username = request.GET.get("username")
+
+    current = User.objects.filter(username=username).first()
+
+    if not current:
+        return JsonResponse([], safe=False)
+
+    learnSkills = list(
+        UserSkill.objects.filter(
+            user=current,
+            type="learn"
+        ).values_list("skill", flat=True)
+    )
+
+    teachSkills = list(
+        UserSkill.objects.filter(
+            user=current,
+            type="teach"
+        ).values_list("skill", flat=True)
+    )
+
+    users = User.objects.exclude(username=username)
+
+    matches = []
+
+    for user in users:
+        otherTeach = list(
+            UserSkill.objects.filter(
                 user=user,
-                skill=item['skill'],
-                language=item['language'],
-                type='teach'
-            )
+                type="teach"
+            ).values_list("skill", flat=True)
+        )
 
-        # SAVE NEW LEARN SKILLS
-        for item in data.get('learnSkills', []):
-            UserSkill.objects.create(
+        otherLearn = list(
+            UserSkill.objects.filter(
                 user=user,
-                skill=item['skill'],
-                language=item['language'],
-                type='learn'
-            )
+                type="learn"
+            ).values_list("skill", flat=True)
+        )
 
-        return Response({"message": "Profile updated ✅"})
+        score = 0
 
-    except User.DoesNotExist:
-        return Response({"error": "User not found"}, status=400)
+        for s in learnSkills:
+            if s in otherTeach:
+                score += 1
+
+        for s in teachSkills:
+            if s in otherLearn:
+                score += 1
+
+        if score > 0:
+            matches.append({
+                "username": user.username,
+                "name": user.name,
+                "credits": user.credits,
+                "matchScore": score,
+                "teachedCount": user.teachedCount,
+                "learnedCount": user.learnedCount
+            })
+
+    matches.sort(key=lambda x: x["matchScore"], reverse=True)
+
+    return JsonResponse(matches, safe=False)
+
+
+# =====================================================
+# COMPLETE SESSION
+# =====================================================
+@csrf_exempt
+def complete_session(request):
+    if request.method != "POST":
+        return JsonResponse({"error": "POST required"}, status=400)
+
+    body = json.loads(request.body)
+
+    teacherUsername = body.get("teacher")
+    learnerUsername = body.get("learner")
+
+    teacher = User.objects.filter(username=teacherUsername).first()
+    learner = User.objects.filter(username=learnerUsername).first()
+
+    if not teacher or not learner:
+        return JsonResponse({"error": "Users not found"}, status=404)
+
+    teacher.teachedCount += 1
+    learner.learnedCount += 1
+
+    teacher.credits += 5
+    learner.credits += 2
+
+    teacher.save()
+    learner.save()
+
+    return JsonResponse({"message": "Session completed"})
