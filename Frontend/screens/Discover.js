@@ -30,58 +30,41 @@ export default function Discover(props) {
     }
   };
 
-  // ✅ FIXED CONNECT REQUEST
-  const toggleConnect = async (user) => {
-    if (!props.isLoggedIn) {
-      props.goToLogin();
-      return;
+const toggleConnect = async (user) => {
+  if (!props.isLoggedIn) {
+    props.goToLogin();
+    return;
+  }
+
+  try {
+    const res = await fetch(`${API}/send-request/`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        sender_id: props.user?.user_id,
+        receiver_id: user.user_id,
+        skill: user.teachSkills?.[0]?.skill || "General",
+        language: user.teachSkills?.[0]?.language || "English",
+      }),
+    });
+
+    const data = await res.json();
+
+    if (res.ok) {
+      setConnections((prev) => ({
+        ...prev,
+        [user.username]: "pending",
+      }));
+    } else {
+      alert(data.error || "Request failed");
     }
-
-    const status = connections[user.username];
-
-    // cancel request locally
-    if (status) {
-      setConnections((prev) => {
-        const updated = { ...prev };
-        delete updated[user.username];
-        return updated;
-      });
-      return;
-    }
-
-    try {
-      const res = await fetch("http://192.168.1.6:8000/api/send-request/", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          sender_id: props.user?.user_id,
-
-          // ✅ FIX: avoid undefined crash
-          receiver_id: user.user_id || user.id,
-
-          skill: user.teachSkills?.[0]?.skill || "General",
-          language: user.teachSkills?.[0]?.language || "English",
-        }),
-      });
-
-      const data = await res.json();
-
-      if (res.ok) {
-        setConnections((prev) => ({
-          ...prev,
-          [user.username]: "pending",
-        }));
-      } else {
-        console.log("SERVER RESPONSE ERROR:", data);
-        alert(data.error || "Request failed");
-      }
-    } catch (err) {
-      console.log("REQUEST ERROR:", err);
-      alert("Server error (check backend or IP)");
-    }
-  };
+  } catch (err) {
+    console.log(err);
+    alert("Server error");
+  }
+};
 
   const teachSkills = (user) => {
     if (!user.teachSkills || user.teachSkills.length === 0) {
