@@ -143,6 +143,7 @@ def register_user(request):
 # UPDATE PROFILE
 # =====================================================
 @csrf_exempt
+@csrf_exempt
 def update_profile(request):
     if request.method != "PUT":
         return JsonResponse({"error": "PUT required"}, status=400)
@@ -156,12 +157,37 @@ def update_profile(request):
     if not user:
         return JsonResponse({"error": "User not found"}, status=404)
 
+    # update fields
+    user.username = body.get("newUsername", user.username)
     user.name = body.get("name", user.name)
     user.email = body.get("email", user.email)
     user.bio = body.get("bio", user.bio)
     user.save()
 
-    return JsonResponse({"message": "Updated"})
+    # delete old skills
+    UserSkill.objects.filter(user=user).delete()
+
+    # add teach skills
+    teachSkills = body.get("teachSkills", [])
+    for item in teachSkills:
+        UserSkill.objects.create(
+            user=user,
+            skill=item["skill"],
+            language=item["language"],
+            type="teach"
+        )
+
+    # add learn skills
+    learnSkills = body.get("learnSkills", [])
+    for item in learnSkills:
+        UserSkill.objects.create(
+            user=user,
+            skill=item["skill"],
+            language=item["language"],
+            type="learn"
+        )
+
+    return JsonResponse({"message": "Profile Updated"})
 
 
 # =====================================================
