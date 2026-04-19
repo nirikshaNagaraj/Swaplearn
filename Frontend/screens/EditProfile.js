@@ -12,12 +12,12 @@ import {
 import { API } from '../../api';
 
 export default function EditProfile({ user, onSave, onCancel }) {
-  const [username, setUsername] = useState(user?.username || '');
-  const [name, setName] = useState(user?.name || '');
-  const [bio, setBio] = useState(user?.bio || '');
+  const [username, setUsername] = useState('');
+  const [name, setName] = useState('');
+  const [bio, setBio] = useState('');
 
-  const [teachSkills, setTeachSkills] = useState(user?.teachSkills || []);
-  const [learnSkills, setLearnSkills] = useState(user?.learnSkills || []);
+  const [teachSkills, setTeachSkills] = useState([]);
+  const [learnSkills, setLearnSkills] = useState([]);
 
   const [categories, setCategories] = useState({});
   const [languages, setLanguages] = useState([]);
@@ -30,6 +30,14 @@ export default function EditProfile({ user, onSave, onCancel }) {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
+    if (user) {
+      setUsername(user.username || '');
+      setName(user.name || '');
+      setBio(user.bio || '');
+      setTeachSkills(user.teachSkills || []);
+      setLearnSkills(user.learnSkills || []);
+    }
+
     fetchMeta();
   }, []);
 
@@ -39,12 +47,13 @@ export default function EditProfile({ user, onSave, onCancel }) {
       const data = await res.json();
 
       let obj = {};
-      data.categories.forEach((item) => {
+
+      (data.categories || []).forEach((item) => {
         obj[item.name] = item.skills;
       });
 
       setCategories(obj);
-      setLanguages(data.languages);
+      setLanguages(data.languages || []);
     } catch (err) {
       console.log(err);
     }
@@ -84,8 +93,8 @@ export default function EditProfile({ user, onSave, onCancel }) {
       setSaving(true);
 
       const payload = {
-        old_username: user.username,
-        username: username.trim(),
+        username: user.username, // old username
+        newUsername: username.trim(),
         name: name.trim(),
         bio: bio.trim(),
         teachSkills,
@@ -101,7 +110,6 @@ export default function EditProfile({ user, onSave, onCancel }) {
       });
 
       const data = await res.json();
-
       setSaving(false);
 
       if (res.ok) {
@@ -109,19 +117,19 @@ export default function EditProfile({ user, onSave, onCancel }) {
 
         onSave({
           ...user,
-          username: data.username,
-          name: data.name,
-          bio: data.bio || '',
-          teachSkills: data.teachSkills || [],
-          learnSkills: data.learnSkills || [],
+          username: data.username || username,
+          name: data.name || name,
+          bio: data.bio || bio,
+          teachSkills: data.teachSkills || teachSkills,
+          learnSkills: data.learnSkills || learnSkills,
         });
       } else {
         Alert.alert('Error', data.error || 'Update failed');
       }
     } catch (error) {
       setSaving(false);
-      Alert.alert('Error', 'Server error');
       console.log(error);
+      Alert.alert('Error', 'Server error');
     }
   };
 
@@ -172,10 +180,13 @@ export default function EditProfile({ user, onSave, onCancel }) {
           onChangeText={setBio}
         />
 
+        {/* TEACH */}
         <Text style={styles.title}>Teach Skills</Text>
 
         <View style={styles.skillWrap}>
-          {teachSkills.map((item, i) => renderChip(item, i, 'teach'))}
+          {teachSkills.map((item, i) =>
+            renderChip(item, i, 'teach')
+          )}
 
           <TouchableOpacity
             style={styles.addBtn}
@@ -188,10 +199,13 @@ export default function EditProfile({ user, onSave, onCancel }) {
           </TouchableOpacity>
         </View>
 
+        {/* LEARN */}
         <Text style={styles.title}>Learn Skills</Text>
 
         <View style={styles.skillWrap}>
-          {learnSkills.map((item, i) => renderChip(item, i, 'learn'))}
+          {learnSkills.map((item, i) =>
+            renderChip(item, i, 'learn')
+          )}
 
           <TouchableOpacity
             style={styles.addBtn}
@@ -204,9 +218,11 @@ export default function EditProfile({ user, onSave, onCancel }) {
           </TouchableOpacity>
         </View>
 
+        {/* CATEGORY */}
         {step === 'category' && (
           <>
             <Text style={styles.title}>Choose Category</Text>
+
             <FlatList
               data={Object.keys(categories)}
               numColumns={2}
@@ -222,9 +238,11 @@ export default function EditProfile({ user, onSave, onCancel }) {
           </>
         )}
 
+        {/* SKILL */}
         {step === 'skill' && (
           <>
             <Text style={styles.title}>Choose Skill</Text>
+
             <FlatList
               data={categories[selectedCategory] || []}
               numColumns={2}
@@ -240,9 +258,11 @@ export default function EditProfile({ user, onSave, onCancel }) {
           </>
         )}
 
+        {/* LANGUAGE */}
         {step === 'language' && (
           <>
             <Text style={styles.title}>Choose Language</Text>
+
             <FlatList
               data={languages}
               numColumns={2}
@@ -255,6 +275,7 @@ export default function EditProfile({ user, onSave, onCancel }) {
           </>
         )}
 
+        {/* SAVE */}
         <TouchableOpacity
           style={styles.saveBtn}
           onPress={saveProfile}

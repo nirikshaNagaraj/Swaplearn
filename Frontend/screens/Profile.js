@@ -5,55 +5,41 @@ import {
   TouchableOpacity,
   StyleSheet,
   ScrollView,
-  Alert,
 } from 'react-native';
 
 import Navbar from './Navbar';
 import EditProfile from './EditProfile';
 
-export default function ProfilePage({ user, setUser, ...props }) {
-
+export default function Profile({
+  user,
+  setUser,
+  onLogout,
+  ...props
+}) {
   const [activeTab, setActiveTab] = useState('skills');
   const [editMode, setEditMode] = useState(false);
   const [skills, setSkills] = useState([]);
 
   useEffect(() => {
-    if (user) loadSkills(user);
+    if (user) {
+      loadSkills(user);
+    }
   }, [user]);
 
   const loadSkills = (userData) => {
-    const teach = (userData.teachSkills || []).map((item) => ({
+    const teach = (userData?.teachSkills || []).map((item) => ({
       type: 'teach',
       skill_name: item.skill,
       language: item.language,
     }));
 
-    const learn = (userData.learnSkills || []).map((item) => ({
+    const learn = (userData?.learnSkills || []).map((item) => ({
       type: 'learn',
       skill_name: item.skill,
       language: item.language,
     }));
 
     setSkills([...teach, ...learn]);
-  };
-
-  // ✅ LOGOUT FUNCTION (CORRECT PLACE)
-  const handleLogout = () => {
-    console.log("🔥 LOGOUT CLICKED");
-
-    props.onLogout?.();   // call Index.js logout
-  };
-
-  // ✅ CONFIRM ALERT
-  const confirmLogout = () => {
-    Alert.alert(
-      "Logout",
-      "Do you want to logout?",
-      [
-        { text: "Cancel", style: "cancel" },
-        { text: "Logout", style: "destructive", onPress: handleLogout }
-      ]
-    );
   };
 
   if (!user) {
@@ -64,31 +50,30 @@ export default function ProfilePage({ user, setUser, ...props }) {
     );
   }
 
+  /* EDIT PAGE */
   if (editMode) {
     return (
       <EditProfile
         user={user}
         onCancel={() => setEditMode(false)}
         onSave={(updatedUser) => {
+          setUser(updatedUser);
+          loadSkills(updatedUser);
           setEditMode(false);
-          setUser({ ...updatedUser });
-          setTimeout(() => loadSkills(updatedUser), 0);
         }}
       />
     );
   }
 
-  const teachSkills = skills.filter(s => s.type === 'teach');
-  const learnSkills = skills.filter(s => s.type === 'learn');
+  const teachSkills = skills.filter((item) => item.type === 'teach');
+  const learnSkills = skills.filter((item) => item.type === 'learn');
 
   return (
     <ScrollView style={styles.container}>
-
       <Navbar {...props} />
 
       {/* HEADER */}
       <View style={styles.headerCard}>
-
         <View style={styles.avatar}>
           <Text style={styles.avatarText}>👤</Text>
         </View>
@@ -99,14 +84,13 @@ export default function ProfilePage({ user, setUser, ...props }) {
 
         {/* STATS */}
         <View style={styles.stats}>
-          <Stat number={user.credits || 0} label="Credits" />
+          <Stat number={user.credits || 10} label="Credits" />
           <Stat number={user.learnedCount || 0} label="Learned" />
           <Stat number={user.teachedCount || 0} label="Teached" />
         </View>
 
-        {/* ACTIONS */}
+        {/* ACTION BUTTONS */}
         <View style={styles.actions}>
-
           <TouchableOpacity
             style={styles.editBtn}
             onPress={() => setEditMode(true)}
@@ -117,45 +101,76 @@ export default function ProfilePage({ user, setUser, ...props }) {
           <TouchableOpacity style={styles.shareBtn}>
             <Text style={styles.shareText}>Share</Text>
           </TouchableOpacity>
-
         </View>
 
-        {/* LOGOUT BUTTON (FIXED) */}
+        {/* LOGOUT BUTTON */}
         <TouchableOpacity
           style={styles.logoutBtn}
-          onPress={confirmLogout}
+          onPress={() => {
+            console.log('Logout Clicked');
+
+            if (onLogout) {
+              onLogout();
+            }
+          }}
         >
           <Text style={styles.logoutText}>Logout</Text>
         </TouchableOpacity>
-
       </View>
 
       {/* TABS */}
       <View style={styles.tabs}>
-        <Tab title="Skills" active={activeTab === 'skills'} onPress={() => setActiveTab('skills')} />
-        <Tab title="Teaching" active={activeTab === 'teaching'} onPress={() => setActiveTab('teaching')} />
-        <Tab title="Learning" active={activeTab === 'learning'} onPress={() => setActiveTab('learning')} />
-        <Tab title="Feedback" active={activeTab === 'feedback'} onPress={() => setActiveTab('feedback')} />
+        <Tab
+          title="Skills"
+          active={activeTab === 'skills'}
+          onPress={() => setActiveTab('skills')}
+        />
+
+        <Tab
+          title="Teaching"
+          active={activeTab === 'teaching'}
+          onPress={() => setActiveTab('teaching')}
+        />
+
+        <Tab
+          title="Learning"
+          active={activeTab === 'learning'}
+          onPress={() => setActiveTab('learning')}
+        />
+
+        <Tab
+          title="Feedback"
+          active={activeTab === 'feedback'}
+          onPress={() => setActiveTab('feedback')}
+        />
       </View>
 
       {/* CONTENT */}
       <View style={styles.section}>
-
         {activeTab === 'skills' && (
-          <SkillsSection teachSkills={teachSkills} learnSkills={learnSkills} />
+          <SkillsSection
+            teachSkills={teachSkills}
+            learnSkills={learnSkills}
+          />
         )}
 
-        {activeTab === 'teaching' && <Empty title="No teaching sessions yet" />}
-        {activeTab === 'learning' && <Empty title="No learning sessions yet" />}
-        {activeTab === 'feedback' && <Empty title="No feedback yet" />}
+        {activeTab === 'teaching' && (
+          <Empty title="No teaching sessions yet" />
+        )}
 
+        {activeTab === 'learning' && (
+          <Empty title="No learning sessions yet" />
+        )}
+
+        {activeTab === 'feedback' && (
+          <Empty title="No feedback yet" />
+        )}
       </View>
-
     </ScrollView>
   );
 }
 
-/* ================= COMPONENTS ================= */
+/* COMPONENTS */
 
 const Stat = ({ number, label }) => (
   <View style={styles.stat}>
@@ -177,29 +192,37 @@ const Tab = ({ title, active, onPress }) => (
 
 const SkillsSection = ({ teachSkills, learnSkills }) => (
   <View>
-
     <Text style={styles.sectionTitle}>I want to learn</Text>
+
     <View style={styles.grid}>
       {learnSkills.length === 0 ? (
         <Text>No learning skills</Text>
       ) : (
         learnSkills.map((item, i) => (
-          <SkillCard key={i} skill={item.skill_name} level={item.language} />
+          <SkillCard
+            key={i}
+            skill={item.skill_name}
+            level={item.language}
+          />
         ))
       )}
     </View>
 
     <Text style={styles.sectionTitle}>I can teach</Text>
+
     <View style={styles.grid}>
       {teachSkills.length === 0 ? (
         <Text>No teaching skills</Text>
       ) : (
         teachSkills.map((item, i) => (
-          <SkillCard key={i} skill={item.skill_name} level={item.language} />
+          <SkillCard
+            key={i}
+            skill={item.skill_name}
+            level={item.language}
+          />
         ))
       )}
     </View>
-
   </View>
 );
 
@@ -216,11 +239,13 @@ const Empty = ({ title }) => (
   </View>
 );
 
-/* ================= STYLES ================= */
+/* STYLES */
 
 const styles = StyleSheet.create({
-
-  container: { flex: 1, backgroundColor: '#f0f4f0' },
+  container: {
+    flex: 1,
+    backgroundColor: '#f0f4f0',
+  },
 
   headerCard: {
     backgroundColor: '#151a3c',
@@ -237,7 +262,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
 
-  avatarText: { fontSize: 30 },
+  avatarText: {
+    fontSize: 30,
+  },
 
   name: {
     color: '#fff',
@@ -252,7 +279,9 @@ const styles = StyleSheet.create({
     marginTop: 18,
   },
 
-  stat: { alignItems: 'center' },
+  stat: {
+    alignItems: 'center',
+  },
 
   statNumber: {
     color: '#4CAF50',
@@ -286,20 +315,22 @@ const styles = StyleSheet.create({
     borderRadius: 22,
   },
 
-  editText: { color: '#fff', fontWeight: 'bold' },
-  shareText: { color: '#4CAF50', fontWeight: 'bold' },
-
-  logoutBtn: {
-    marginTop: 15,
-    backgroundColor: '#ef4444',
-    paddingHorizontal: 80,
-    paddingVertical: 10,
-    borderRadius: 22,
-  },
-
-  logoutText: {
+  editText: {
     color: '#fff',
     fontWeight: 'bold',
+  },
+
+  shareText: {
+    color: '#4CAF50',
+    fontWeight: 'bold',
+  },
+
+
+
+  logoutText: {
+    color: '#cf4848',
+    fontWeight: 'bold',
+    fontSize :13,
   },
 
   tabs: {
@@ -321,14 +352,18 @@ const styles = StyleSheet.create({
     backgroundColor: '#4CAF50',
   },
 
-  tabText: { color: '#555' },
+  tabText: {
+    color: '#555',
+  },
 
   activeTabText: {
     color: '#fff',
     fontWeight: 'bold',
   },
 
-  section: { padding: 20 },
+  section: {
+    padding: 20,
+  },
 
   sectionTitle: {
     fontWeight: 'bold',
@@ -352,8 +387,15 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
 
-  skill: { fontWeight: 'bold', color: '#151a3c' },
-  level: { color: '#4CAF50', marginTop: 5 },
+  skill: {
+    fontWeight: 'bold',
+    color: '#151a3c',
+  },
+
+  level: {
+    color: '#4CAF50',
+    marginTop: 5,
+  },
 
   emptyBox: {
     backgroundColor: '#fff',

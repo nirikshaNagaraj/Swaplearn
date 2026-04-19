@@ -11,7 +11,6 @@ import Navbar from './Navbar';
 import { API } from '../../api';
 
 export default function Discover(props) {
-
   const [users, setUsers] = useState([]);
   const [selectedUser, setSelectedUser] = useState(null);
   const [connections, setConnections] = useState({});
@@ -25,24 +24,12 @@ export default function Discover(props) {
       const res = await fetch(`${API}/users/`);
       const data = await res.json();
       setUsers(data);
-    } catch (err) {
-      setUsers([
-        {
-          username: "testuser",
-          name: "Test User",
-          credits: 120,
-          teachedCount: 5,
-          learnedCount: 3,
-          teachSkills: [{ skill: "React" }],
-          learnSkills: [{ skill: "Python" }]
-        }
-      ]);
+    } catch (error) {
+      console.log(error);
     }
   };
 
-  // ✅ CONNECT / CANCEL (LOGIN PROTECTED)
   const toggleConnect = (user) => {
-
     if (!props.isLoggedIn) {
       props.goToLogin();
       return;
@@ -51,9 +38,9 @@ export default function Discover(props) {
     const status = connections[user.username];
 
     if (!status) {
-      setConnections(prev => ({
+      setConnections((prev) => ({
         ...prev,
-        [user.username]: 'pending'
+        [user.username]: 'pending',
       }));
     } else {
       const updated = { ...connections };
@@ -62,306 +49,360 @@ export default function Discover(props) {
     }
   };
 
-  const statusText = (status) => {
-    if (status === 'pending') return 'Request Sent ⏳';
-    if (status === 'connected') return 'Connected 🤝';
-    return '';
+  const teachSkills = (user) => {
+    if (!user.teachSkills || user.teachSkills.length === 0) {
+      return 'No skills added';
+    }
+
+    return user.teachSkills
+      .map((item) => `${item.skill} (${item.language})`)
+      .join(', ');
+  };
+
+  const learnSkills = (user) => {
+    if (!user.learnSkills || user.learnSkills.length === 0) {
+      return 'No skills added';
+    }
+
+    return user.learnSkills
+      .map((item) => `${item.skill} (${item.language})`)
+      .join(', ');
   };
 
   return (
     <ScrollView style={styles.container}>
-
       <Navbar {...props} />
 
       <Text style={styles.title}>Discover People</Text>
 
       <View style={styles.grid}>
+        {users.map((user, index) => (
+          <View key={index} style={styles.card}>
+            <Text style={styles.name}>
+              {user.name || user.username}
+            </Text>
 
-        {users.map((user, index) => {
+            <Text style={styles.info}>
+               Credits: {user.credits || 0}
+            </Text>
 
-          const status = connections[user.username];
+            <Text style={styles.info}>
+              Teaches: {teachSkills(user)}
+            </Text>
 
-          return (
-            <View key={index} style={styles.card}>
+            <Text style={styles.info}>
+             Learns: {learnSkills(user)}
+            </Text>
 
-              {/* NAME */}
-              <Text style={styles.name}>
-                {user.name || user.username}
+            <TouchableOpacity
+              style={styles.viewBtn}
+              onPress={() => setSelectedUser(user)}
+            >
+              <Text style={styles.btnText}>
+                 View Profile
               </Text>
+            </TouchableOpacity>
 
-              {/* QUICK STATS */}
-              <Text style={styles.smallText}>
-                💰 Credits: {user.credits || 0}
+            <TouchableOpacity
+              style={styles.connectBtn}
+              onPress={() => toggleConnect(user)}
+            >
+              <Text style={styles.btnText}>
+                {connections[user.username]
+                  ? 'X Cancel Request'
+                  : ' Connect'}
               </Text>
-
-              <Text style={styles.smallText}>
-                🧑‍🏫 Teached: {user.teachedCount || 0}
-              </Text>
-
-              <Text style={styles.smallText}>
-                📚 Learned: {user.learnedCount || 0}
-              </Text>
-
-              {/* VIEW PROFILE */}
-              <TouchableOpacity
-                style={styles.viewBtn}
-                onPress={() => setSelectedUser(user)}
-              >
-                <Text style={styles.btnText}>👁 View Profile</Text>
-              </TouchableOpacity>
-
-              {/* CONNECT BUTTON */}
-              <TouchableOpacity
-                style={[
-                  props.isLoggedIn ? styles.connectBtn : styles.disabledBtn
-                ]}
-                onPress={() => toggleConnect(user)}
-              >
-                <Text style={styles.btnText}>
-                  {status ? "❌ Cancel Request" : "🤝 Connect"}
-                </Text>
-              </TouchableOpacity>
-
-              {status && (
-                <Text style={styles.status}>
-                  {statusText(status)}
-                </Text>
-              )}
-
-            </View>
-          );
-        })}
-
+            </TouchableOpacity>
+          </View>
+        ))}
       </View>
 
-      {/* PROFILE MODAL */}
-      <Modal visible={!!selectedUser} animationType="slide">
-
-        <View style={styles.modalContainer}>
-
+      {/* FULL PROFILE MODAL */}
+      <Modal visible={!!selectedUser} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
           {selectedUser && (
             <View style={styles.modalCard}>
+              {/* HEADER */}
+              <View style={styles.topRow}>
+                <View style={styles.avatar}>
+                  <Text style={styles.avatarText}>
+                    {(selectedUser.name ||
+                      selectedUser.username)
+                      .charAt(0)
+                      .toUpperCase()}
+                  </Text>
+                </View>
 
-              <Text style={styles.modalName}>
-                {selectedUser.name || selectedUser.username}
-              </Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.modalName}>
+                    {selectedUser.name ||
+                      selectedUser.username}
+                  </Text>
+
+                  <Text style={styles.username}>
+                    @{selectedUser.username}
+                  </Text>
+
+                </View>
+              </View>
 
               {/* STATS */}
-              <View style={styles.statsBox}>
-
-                <View style={styles.stat}>
+              <View style={styles.statsRow}>
+                <View style={styles.statBox}>
                   <Text style={styles.statNumber}>
                     {selectedUser.credits || 0}
                   </Text>
-                  <Text style={styles.statLabel}>Credits</Text>
+                  <Text style={styles.statLabel}>
+                    Credits
+                  </Text>
                 </View>
 
-                <View style={styles.stat}>
+                <View style={styles.statBox}>
                   <Text style={styles.statNumber}>
                     {selectedUser.teachedCount || 0}
                   </Text>
-                  <Text style={styles.statLabel}>Taught</Text>
+                  <Text style={styles.statLabel}>
+                    Taught
+                  </Text>
                 </View>
 
-                <View style={styles.stat}>
+                <View style={styles.statBox}>
                   <Text style={styles.statNumber}>
                     {selectedUser.learnedCount || 0}
                   </Text>
-                  <Text style={styles.statLabel}>Learned</Text>
+                  <Text style={styles.statLabel}>
+                    Learned
+                  </Text>
                 </View>
-
               </View>
 
-              {/* SKILLS */}
-              <Text style={styles.section}>Skills</Text>
-
-              <Text style={styles.modalText}>
-                🧑‍🏫 Teaches: {selectedUser.teachSkills?.map(s => s.skill).join(', ') || 'None'}
+              {/* DETAILS */}
+              <Text style={styles.section}>
+                @ Email
+              </Text>
+              <Text style={styles.detail}>
+                {selectedUser.email ||
+                  'No email added'}
               </Text>
 
-              <Text style={styles.modalText}>
-                📚 Learns: {selectedUser.learnSkills?.map(s => s.skill).join(', ') || 'None'}
+              <Text style={styles.section}>
+                ~ Skills They Teach
+              </Text>
+              <Text style={styles.detail}>
+                {teachSkills(selectedUser)}
               </Text>
 
-              {/* CONNECT INSIDE MODAL */}
+              <Text style={styles.section}>
+                ~ Skills They Want To Learn
+              </Text>
+              <Text style={styles.detail}>
+                {learnSkills(selectedUser)}
+              </Text>
+
+              {/* ACTION BUTTONS */}
               <TouchableOpacity
-                style={[
-                  props.isLoggedIn ? styles.modalBtn : styles.disabledBtn
-                ]}
-                onPress={() => {
-
-                  if (!props.isLoggedIn) {
-                    setSelectedUser(null);
-                    props.goToLogin();
-                    return;
-                  }
-
-                  toggleConnect(selectedUser);
-                }}
+                style={styles.modalBtn}
+                onPress={() =>
+                  toggleConnect(selectedUser)
+                }
               >
                 <Text style={styles.btnText}>
-                  {connections[selectedUser.username]
-                    ? "❌ Cancel Request"
-                    : "🤝 Send Request"}
+                  {connections[
+                    selectedUser.username
+                  ]
+                    ? 'X Cancel Request'
+                    : ' Send Request ->'}
                 </Text>
               </TouchableOpacity>
 
-              <TouchableOpacity onPress={() => setSelectedUser(null)}>
-                <Text style={styles.close}>Close</Text>
+              <TouchableOpacity
+                style={styles.closeBtn}
+                onPress={() =>
+                  setSelectedUser(null)
+                }
+              >
+                <Text style={styles.closeText}>
+                  Close
+                </Text>
               </TouchableOpacity>
-
             </View>
           )}
-
         </View>
-
       </Modal>
-
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-
   container: {
     flex: 1,
-    backgroundColor: '#f6f8fb',
+    backgroundColor: '#f5f7fb',
   },
 
   title: {
-    fontSize: 28,
-    fontWeight: '900',
+    fontSize: 30,
+    fontWeight: 'bold',
     margin: 20,
+    color: '#111827',
   },
 
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
-    paddingHorizontal: 12,
+    paddingHorizontal: 15,
   },
 
   card: {
     width: '31%',
     backgroundColor: '#fff',
-    padding: 12,
-    borderRadius: 16,
-    marginBottom: 12,
-    elevation: 3,
+    borderRadius: 18,
+    padding: 16,
+    marginBottom: 14,
+    elevation: 4,
   },
 
   name: {
-    fontSize: 16,
-    fontWeight: '900',
-    marginBottom: 6,
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 8,
   },
 
-  smallText: {
-    fontSize: 11,
-    color: '#555',
+  info: {
+    fontSize: 13,
+    color: '#4b5563',
+    marginBottom: 5,
   },
 
   viewBtn: {
-    marginTop: 8,
-    backgroundColor: '#6366f1',
-    padding: 8,
+    backgroundColor: '#5b5ce2',
+    padding: 10,
     borderRadius: 10,
+    marginTop: 10,
     alignItems: 'center',
   },
 
   connectBtn: {
-    marginTop: 6,
     backgroundColor: '#22c55e',
-    padding: 8,
+    padding: 10,
     borderRadius: 10,
+    marginTop: 8,
     alignItems: 'center',
-  },
-
-  disabledBtn: {
-    marginTop: 6,
-    backgroundColor: '#9ca3af',
-    padding: 8,
-    borderRadius: 10,
-    alignItems: 'center',
-    opacity: 0.6,
   },
 
   btnText: {
-    color: 'white',
-    fontWeight: '800',
-    fontSize: 11,
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 13,
   },
 
-  status: {
-    fontSize: 10,
-    marginTop: 4,
-    color: '#6b7280',
-  },
-
-  modalContainer: {
+  modalOverlay: {
     flex: 1,
-    backgroundColor: '#0f172a',
+    backgroundColor: 'rgba(0,0,0,0.55)',
     justifyContent: 'center',
-    padding: 20,
+    alignItems: 'center',
   },
 
   modalCard: {
-    backgroundColor: 'white',
-    borderRadius: 20,
-    padding: 20,
+    width: '68%',
+    backgroundColor: '#fff',
+    borderRadius: 22,
+    padding: 28,
   },
 
-  modalName: {
-    fontSize: 24,
-    fontWeight: '900',
-    marginBottom: 15,
-  },
-
-  statsBox: {
+  topRow: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
     marginBottom: 20,
   },
 
-  stat: {
+  avatar: {
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    backgroundColor: '#5b5ce2',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 18,
+  },
+
+  avatarText: {
+    color: '#fff',
+    fontSize: 28,
+    fontWeight: 'bold',
+  },
+
+  modalName: {
+    fontSize: 26,
+    fontWeight: 'bold',
+  },
+
+  username: {
+    fontSize: 14,
+    color: '#6b7280',
+    marginTop: 2,
+  },
+
+  bio: {
+    marginTop: 8,
+    color: '#374151',
+    fontSize: 14,
+  },
+
+  statsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 22,
+  },
+
+  statBox: {
+    width: '31%',
+    backgroundColor: '#f3f4f6',
+    padding: 14,
+    borderRadius: 14,
     alignItems: 'center',
   },
 
   statNumber: {
-    fontSize: 20,
-    fontWeight: '900',
+    fontSize: 22,
+    fontWeight: 'bold',
   },
 
   statLabel: {
-    fontSize: 11,
+    fontSize: 12,
     color: '#6b7280',
+    marginTop: 4,
   },
 
   section: {
-    fontSize: 14,
-    fontWeight: '800',
+    fontSize: 15,
+    fontWeight: 'bold',
+    marginTop: 10,
     marginBottom: 6,
+    color: '#111827',
   },
 
-  modalText: {
-    fontSize: 13,
-    marginBottom: 6,
+  detail: {
+    fontSize: 14,
     color: '#374151',
+    marginBottom: 8,
   },
 
   modalBtn: {
-    marginTop: 15,
     backgroundColor: '#22c55e',
-    padding: 12,
+    padding: 13,
     borderRadius: 12,
+    marginTop: 18,
     alignItems: 'center',
   },
 
-  close: {
-    marginTop: 12,
-    textAlign: 'center',
-    color: '#ef4444',
-    fontWeight: '800',
+  closeBtn: {
+    marginTop: 14,
+    alignItems: 'center',
   },
 
+  closeText: {
+    color: '#ef4444',
+    fontWeight: 'bold',
+    fontSize: 14,
+  },
 });
