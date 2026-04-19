@@ -172,14 +172,6 @@ export default function EditProfile({ user, onSave, onCancel }) {
           onChangeText={setName}
         />
 
-        <TextInput
-          style={[styles.input, { height: 90 }]}
-          placeholder="Bio"
-          multiline
-          value={bio}
-          onChangeText={setBio}
-        />
-
         {/* TEACH */}
         <Text style={styles.title}>Teach Skills</Text>
 
