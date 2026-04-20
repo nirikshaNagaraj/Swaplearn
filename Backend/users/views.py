@@ -1,10 +1,18 @@
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
+from django.db import models
 import json
 
 from .models import (
-    User, Category, Skill, Language,
-    UserSkill, Availability, Request
+    User,
+    Category,
+    Skill,
+    Language,
+    UserSkill,
+    Availability,
+    Request,
+    ChatRoom, 
+    Message
 )
 
 # =====================================================
@@ -294,10 +302,13 @@ def get_calendar_slots(request):
 # =====================================================
 @csrf_exempt
 def send_request(request):
+    print("SEND REQUEST HIT")
+
     if request.method != "POST":
         return JsonResponse({"error": "POST required"}, status=400)
 
     body = json.loads(request.body)
+    print(body)
 
     sender = User.objects.filter(id=body.get("sender_id")).first()
     receiver = User.objects.filter(id=body.get("receiver_id")).first()
@@ -313,8 +324,10 @@ def send_request(request):
         status="pending"
     )
 
-    return JsonResponse({"message": "Request sent", "request_id": req.id})
-
+    return JsonResponse({
+        "message": "Request sent",
+        "request_id": req.id
+    })
 
 def get_requests(request, user_id):
     user = User.objects.filter(id=user_id).first()
@@ -335,22 +348,40 @@ def get_requests(request, user_id):
         for r in reqs
     ], safe=False)
 
+# views.py
 
 @csrf_exempt
 def accept_request(request):
     if request.method != "POST":
         return JsonResponse({"error": "POST required"}, status=400)
 
-    req = Request.objects.filter(id=json.loads(request.body).get("request_id")).first()
+    body = json.loads(request.body)
+
+    req = Request.objects.filter(id=body.get("request_id")).first()
 
     if not req:
         return JsonResponse({"error": "Request not found"}, status=404)
 
+    # mark accepted
     req.status = "accepted"
     req.save()
 
-    return JsonResponse({"message": "Accepted"})
+    # create chat room for both users
+    room = ChatRoom.objects.filter(
+        models.Q(user1=req.sender, user2=req.receiver) |
+        models.Q(user1=req.receiver, user2=req.sender)
+    ).first()
 
+    if not room:
+        room = ChatRoom.objects.create(
+            user1=req.sender,
+            user2=req.receiver
+        )
+
+    return JsonResponse({
+        "message": "Accepted",
+        "room_id": room.id
+    })
 
 @csrf_exempt
 def reject_request(request):
@@ -366,3 +397,81 @@ def reject_request(request):
     req.save()
 
     return JsonResponse({"message": "Rejected"})
+
+
+# =====================================================
+# CHAT SYSTEM
+# =====================================================
+# views.py
+
+def get_chats(request, user_id):
+    rooms = ChatRoom.objects.filter(
+        models.Q(user1_id=user_id) |
+        models.Q(user2_id=user_id)
+    )
+
+    data = []
+
+    for room in rooms:
+        other = room.user2 if room.user1.id == user_id else room.user1
+
+        last = Message.objects.filter(
+            room=room
+        ).order_by("-created_at").first()
+
+        data.append({
+            "room_id": room.id,
+
+            # FULL USER PROFILE
+            "user_id": other.id,
+            "username": other.username,
+            "name": other.name,
+            "email": other.email,
+            "bio": other.bio,
+            "credits": other.credits,
+
+            "last_message": last.text if last else ""
+        })
+
+    return JsonResponse(data, safe=False)
+
+
+def get_messages(request, room_id):
+    msgs = Message.objects.filter(
+        room_id=room_id
+    ).order_by("created_at")
+
+    return JsonResponse([
+        {
+            "sender": m.sender.id,
+            "text": m.text
+        }
+        for m in msgs
+    ], safe=False)
+
+
+@csrf_exempt
+def send_message(request):
+    if request.method != "POST":
+        return JsonResponse({"error": "POST required"}, status=400)
+
+    body = json.loads(request.body)
+
+    room = ChatRoom.objects.filter(
+        id=body.get("room_id")
+    ).first()
+
+    sender = User.objects.filter(
+        id=body.get("sender_id")
+    ).first()
+
+    if not room or not sender:
+        return JsonResponse({"error": "Invalid room or sender"}, status=404)
+
+    Message.objects.create(
+        room=room,
+        sender=sender,
+        text=body.get("text")
+    )
+
+    return JsonResponse({"message": "sent"})
