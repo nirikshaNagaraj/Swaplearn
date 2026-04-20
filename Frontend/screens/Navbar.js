@@ -4,60 +4,49 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 export default function Navbar({
   user,
   isLoggedIn,
-  goToLogin,
-  goToRegister,
   goToHome,
   goToAbout,
   goToDiscover,
   goToMatch,
-  goToProfile,
   goToMessages,
+  goToProfile,
+  goToLogin,
+  goToRegister,
 }) {
 
-  // 🔥 SAFE LOGIN CHECK (FIXED)
-  const loggedIn = isLoggedIn || !!user;
+  const logged = isLoggedIn || !!user;
 
   return (
     <View style={styles.navbar}>
 
-      {/* LOGO */}
-      <TouchableOpacity onPress={() => goToHome?.()}>
-        <Text style={styles.logo}>SwapLearn</Text>
-      </TouchableOpacity>
+      <Text style={styles.logo} onPress={goToHome}>
+        SwapLearn
+      </Text>
 
-      {/* MENU */}
       <View style={styles.menu}>
-        <Text style={styles.link} onPress={() => goToHome?.()}>Home</Text>
-        <Text style={styles.link} onPress={() => goToAbout?.()}>About</Text>
-        <Text style={styles.link} onPress={() => goToDiscover?.()}>Discover</Text>
-        <Text style={styles.link} onPress={() => goToMatch?.()}>Match</Text>
+        <Text style={styles.link} onPress={goToHome}>Home</Text>
+        <Text style={styles.link} onPress={goToAbout}>About</Text>
+        <Text style={styles.link} onPress={goToDiscover}>Discover</Text>
+        <Text style={styles.link} onPress={goToMatch}>Match</Text>
 
-        {loggedIn && (
-          <Text style={styles.link} onPress={() => goToMessages?.()}>
+        {logged && (
+          <Text style={styles.link} onPress={goToMessages}>
             Messages
           </Text>
         )}
       </View>
 
-      {/* AUTH */}
       <View style={styles.auth}>
-
-        {!loggedIn ? (
+        {!logged ? (
           <>
-            <TouchableOpacity onPress={() => goToLogin?.()}>
-              <Text style={styles.login}>Login</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity onPress={() => goToRegister?.()}>
-              <Text style={styles.signup}>Sign Up</Text>
-            </TouchableOpacity>
+            <Text style={styles.link} onPress={goToLogin}>Login</Text>
+            <Text style={styles.signup} onPress={goToRegister}>Sign Up</Text>
           </>
         ) : (
-          <TouchableOpacity onPress={() => goToProfile?.()}>
-            <Text style={styles.profile}>Profile</Text>
-          </TouchableOpacity>
+          <Text style={styles.profile} onPress={goToProfile}>
+            Profile
+          </Text>
         )}
-
       </View>
 
     </View>
@@ -68,44 +57,13 @@ const styles = StyleSheet.create({
   navbar: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
     backgroundColor: '#151a3c',
-    paddingHorizontal: 30,
-    paddingVertical: 15,
+    padding: 15,
   },
-
-  logo: {
-    color: '#4CAF50',
-    fontSize: 20,
-    fontWeight: 'bold',
-  },
-
-  menu: {
-    flexDirection: 'row',
-  },
-
-  link: {
-    color: 'white',
-    marginHorizontal: 8,
-  },
-
-  auth: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 15,
-  },
-
-  login: {
-    color: 'white',
-  },
-
-  signup: {
-    color: '#4CAF50',
-    fontWeight: 'bold',
-  },
-
-  profile: {
-    color: '#4CAF50',
-    fontWeight: 'bold',
-  },
+  logo: { color: '#4CAF50', fontWeight: 'bold', fontSize: 18 },
+  menu: { flexDirection: 'row' },
+  auth: { flexDirection: 'row' },
+  link: { color: '#fff', marginHorizontal: 8 },
+  signup: { color: '#4CAF50', marginLeft: 10 },
+  profile: { color: '#4CAF50', fontWeight: 'bold' },
 });
