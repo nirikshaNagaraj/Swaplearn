@@ -10,26 +10,22 @@ import Profile from '../screens/Profile';
 import Messages from '../screens/Messages';
 import Availability from '../screens/Availability';
 import Requests from '../screens/Requests';
+import Chat from '../screens/ChatScreen';   // ✅ NEW SCREEN
 
 export default function Index() {
+
   const [screen, setScreen] = useState('home');
   const [user, setUser] = useState(null);
+  const [chatUser, setChatUser] = useState<any>(null);// ✅ IMPORTANT
 
-  const isLoggedIn = user !== null;
+  const isLoggedIn = !!user;
 
-  const handleLoginSuccess = (userData) => {
-    setUser(userData);
-    setScreen('profile');   // always go profile after login
-  };
-
-  const handleLogout = () => {
-    setUser(null);
-    setScreen('home');
-  };
-
-  const commonProps = {
+  // ================= NAV =================
+  const nav = {
     user,
     isLoggedIn,
+    setUser,
+
     goToLogin: () => setScreen('login'),
     goToRegister: () => setScreen('register'),
     goToHome: () => setScreen('home'),
@@ -38,8 +34,22 @@ export default function Index() {
     goToMatch: () => setScreen('match'),
     goToProfile: () => setScreen('profile'),
     goToMessages: () => setScreen('messages'),
+    goToRequests: () => setScreen('requests'),
   };
 
+  // ================= LOGIN =================
+  const handleLoginSuccess = (data) => {
+    setUser(data);
+    setScreen('profile');
+  };
+
+  // ================= LOGOUT =================
+  const handleLogout = () => {
+    setUser(null);
+    setScreen('home');
+  };
+
+  // ================= LOGIN =================
   if (screen === 'login') {
     return (
       <Login
@@ -50,6 +60,7 @@ export default function Index() {
     );
   }
 
+  // ================= REGISTER =================
   if (screen === 'register') {
     return (
       <Register
@@ -59,25 +70,60 @@ export default function Index() {
     );
   }
 
+  // ================= CHAT SCREEN (NEW) =================
+if (screen === 'chat' && chatUser) {
+  return (
+<Chat
+  route={{
+    params: {
+      room_id: chatUser?.room_id,
+      name: chatUser?.name || chatUser?.username,
+      user: user,
+    },
+  }}
+  goBack={() => setScreen('messages')}
+/>
+  );
+}
+
+  // ================= PROFILE =================
   if (screen === 'profile') {
     return (
       <Profile
-        {...commonProps}
-        setUser={setUser}
+        {...nav}
         onLogout={handleLogout}
         goToAvailability={() => setScreen('availability')}
-        goToRequests={() => setScreen('requests')} 
+        goToRequests={() => setScreen('requests')}
       />
     );
   }
 
-  if (screen === 'messages') {
-    return <Messages {...commonProps} />;
+  // ================= REQUESTS =================
+  if (screen === 'requests') {
+    return <Requests {...nav} />;
   }
 
-  if (screen === 'about') return <About {...commonProps} />;
-  if (screen === 'discover') return <Discover {...commonProps} />;
-  if (screen === 'match') return <Match {...commonProps} />;
+  // ================= MESSAGES =================
+if (screen === 'messages') {
+  return (
+    <Messages
+      {...nav}
+    openChat={(room_id, otherUser) => {
+  setChatUser({
+    ...otherUser,
+    room_id: room_id,
+  });
+
+  setScreen('chat');
+}}
+    />
+  );
+}
+
+  // ================= OTHER SCREENS =================
+  if (screen === 'about') return <About {...nav} />;
+  if (screen === 'discover') return <Discover {...nav} />;
+  if (screen === 'match') return <Match {...nav} />;
 
   if (screen === 'availability') {
     return (
@@ -88,14 +134,7 @@ export default function Index() {
       />
     );
   }
-  if (screen === 'requests') {
-  return (
-    <Requests
-      user={user}
-      goBack={() => setScreen('profile')}
-    />
-  );
-}
 
-  return <Home {...commonProps} />;
+  // ================= HOME =================
+  return <Home {...nav} />;
 }
