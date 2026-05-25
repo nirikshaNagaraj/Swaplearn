@@ -1,477 +1,566 @@
+from django.shortcuts import render
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
-from django.db import models
+from .models import User, Skill, UserSkill, UserFullData, SkillRequest, ChatRoom, Message, UserProfile
 import json
-
-from .models import (
-    User,
-    Category,
-    Skill,
-    Language,
-    UserSkill,
-    Availability,
-    Request,
-    ChatRoom, 
-    Message
-)
-
-# =====================================================
-# USERS LIST
-# =====================================================
-def users_list(request):
-    users = User.objects.all()
-    result = []
-
-    for user in users:
-        teach = UserSkill.objects.filter(user=user, type="teach")
-        learn = UserSkill.objects.filter(user=user, type="learn")
-
-        result.append({
-            "user_id": user.id,
-            "username": user.username,
-            "name": user.name,
-            "email": user.email,
-            "bio": user.bio,
-            "credits": user.credits,
-            "views": user.views,
-            "teachedCount": user.teachedCount,
-            "learnedCount": user.learnedCount,
-            "teachSkills": [
-                {"skill": x.skill, "language": x.language}
-                for x in teach
-            ],
-            "learnSkills": [
-                {"skill": x.skill, "language": x.language}
-                for x in learn
-            ],
-        })
-
-    return JsonResponse(result, safe=False)
+import hashlib
+import os
+from django.db.models import Q
+from django.db.models import Count
+print("RUNNING FROM:", os.getcwd())
+print("CORRECT VIEWS.PY RUNNING ")    
 
 
-# =====================================================
-# LOGIN
-# =====================================================
+def home(request):
+    return render(request, 'add.html')
+
+
 @csrf_exempt
-def login_user(request):
-    if request.method != "POST":
-        return JsonResponse({"error": "POST required"}, status=400)
+def register(request):
+    if request.method == "POST":
+        raw_password = request.POST.get("password")
+        hashed_password = hashlib.sha256(raw_password.encode()).hexdigest()
 
-    body = json.loads(request.body)
+        user = User.objects.create(
+            full_name=request.POST.get("name"),
+            username=request.POST.get("username"),
+            email=request.POST.get("email"),
+            password=hashed_password
+        )
 
-    user = User.objects.filter(username=body.get("username")).first()
+        UserProfile.objects.create(
+            user=user,
+            username=user.username,
+            credit=10,
+            skills_learn_count=0,
+            skills_teach_count=0
+        )
+       
+        return render(request, 'success.html')
 
-    if not user or not user.check_password(body.get("password")):
-        return JsonResponse({"error": "Invalid credentials"}, status=400)
-
-    teach = UserSkill.objects.filter(user=user, type="teach")
-    learn = UserSkill.objects.filter(user=user, type="learn")
-
-    return JsonResponse({
-        "user_id": user.id,
-        "username": user.username,
-        "name": user.name,
-        "email": user.email,
-        "bio": user.bio,
-        "credits": user.credits,
-        "views": user.views,
-        "teachedCount": user.teachedCount,
-        "learnedCount": user.learnedCount,
-        "teachSkills": [
-            {"skill": x.skill, "language": x.language}
-            for x in teach
-        ],
-        "learnSkills": [
-            {"skill": x.skill, "language": x.language}
-            for x in learn
-        ],
-    })
+    return JsonResponse({"error": "POST required"}, status=400)
 
 
-# =====================================================
-# REGISTER
-# =====================================================
 @csrf_exempt
-def register_user(request):
-    if request.method != "POST":
-        return JsonResponse({"error": "POST required"}, status=400)
+def api_add_user(request):
+    if request.method == "POST":
+        data = json.loads(request.body)
 
-    body = json.loads(request.body)
+        hashed_password = hashlib.sha256(data.get("password").encode()).hexdigest()
 
-    if User.objects.filter(username=body.get("username")).exists():
-        return JsonResponse({"error": "Username already exists"}, status=400)
-
-    user = User(
-        username=body.get("username"),
-        name=body.get("name", ""),
-        email=body.get("email", ""),
-        teachedCount=0,
-        learnedCount=0
-    )
-
-    user.set_password(body.get("password"))
-    user.save()
-
-    for item in body.get("teachSkills", []):
-        UserSkill.objects.create(
-            user=user,
-            skill=item["skill"],
-            language=item["language"],
-            type="teach"
+        user = User.objects.create(
+            full_name=data.get("name"),
+            username=data.get("username"),
+            email=data.get("email"),
+            password=hashed_password
         )
 
-    for item in body.get("learnSkills", []):
-        UserSkill.objects.create(
+        UserProfile.objects.create(
             user=user,
-            skill=item["skill"],
-            language=item["language"],
-            type="learn"
+            username=user.username,
+            credit=10,
+            skills_learn_count=0,
+            skills_teach_count=0
         )
 
-    return JsonResponse({"message": "Registered Successfully"})
+        return JsonResponse({"id": user.user_id})
+
+    return JsonResponse({"error": "POST required"}, status=400)
 
 
-# =====================================================
-# UPDATE PROFILE
-# =====================================================
+# ================= LOGIN =================
 @csrf_exempt
-def update_profile(request):
-    if request.method != "PUT":
-        return JsonResponse({"error": "PUT required"}, status=400)
+def api_login(request):
+    if request.method == "POST":
+        data = json.loads(request.body)
 
-    body = json.loads(request.body)
+        hashed_password = hashlib.sha256(data.get("password").encode()).hexdigest()
 
-    user = User.objects.filter(username=body.get("username")).first()
+        user = User.objects.filter(
+            username=data.get("username"),
+            password=hashed_password
+        ).first()
 
-    if not user:
-        return JsonResponse({"error": "User not found"}, status=404)
-
-    user.username = body.get("newUsername", user.username)
-    user.name = body.get("name", user.name)
-    user.email = body.get("email", user.email)
-    user.bio = body.get("bio", user.bio)
-    user.save()
-
-    UserSkill.objects.filter(user=user).delete()
-
-    for item in body.get("teachSkills", []):
-        UserSkill.objects.create(
-            user=user,
-            skill=item["skill"],
-            language=item["language"],
-            type="teach"
-        )
-
-    for item in body.get("learnSkills", []):
-        UserSkill.objects.create(
-            user=user,
-            skill=item["skill"],
-            language=item["language"],
-            type="learn"
-        )
-
-    return JsonResponse({"message": "Profile Updated"})
-
-
-# =====================================================
-# METADATA
-# =====================================================
-def metadata(request):
-    categories = Category.objects.all()
-    languages = Language.objects.all()
-
-    return JsonResponse({
-        "categories": [
-            {
-                "name": c.name,
-                "skills": [s.name for s in Skill.objects.filter(category=c.name)]
-            }
-            for c in categories
-        ],
-        "languages": [l.name for l in languages]
-    })
-
-
-# =====================================================
-# MATCHES
-# =====================================================
-def get_matches(request):
-    username = request.GET.get("username")
-    current = User.objects.filter(username=username).first()
-
-    if not current:
-        return JsonResponse([], safe=False)
-
-    learnSkills = list(UserSkill.objects.filter(user=current, type="learn").values_list("skill", flat=True))
-    teachSkills = list(UserSkill.objects.filter(user=current, type="teach").values_list("skill", flat=True))
-
-    matches = []
-
-    for user in User.objects.exclude(username=username):
-        otherTeach = list(UserSkill.objects.filter(user=user, type="teach").values_list("skill", flat=True))
-        otherLearn = list(UserSkill.objects.filter(user=user, type="learn").values_list("skill", flat=True))
-
-        score = sum(1 for s in learnSkills if s in otherTeach)
-        score += sum(1 for s in teachSkills if s in otherLearn)
-
-        if score > 0:
-            matches.append({
-                "username": user.username,
-                "name": user.name,
-                "credits": user.credits,
-                "matchScore": score,
-                "teachedCount": user.teachedCount,
-                "learnedCount": user.learnedCount
+        if user:
+            return JsonResponse({
+                "status": "success",
+                "user_id": user.user_id,
+                "name": user.full_name
             })
 
-    return JsonResponse(sorted(matches, key=lambda x: x["matchScore"], reverse=True), safe=False)
+        return JsonResponse({"status": "error"})
+
+    return JsonResponse({"error": "POST only"}, status=400)
 
 
-# =====================================================
-# COMPLETE SESSION
-# =====================================================
-@csrf_exempt
-def complete_session(request):
-    if request.method != "POST":
-        return JsonResponse({"error": "POST required"}, status=400)
-
-    body = json.loads(request.body)
-
-    teacher = User.objects.filter(username=body.get("teacher")).first()
-    learner = User.objects.filter(username=body.get("learner")).first()
-
-    if not teacher or not learner:
-        return JsonResponse({"error": "Users not found"}, status=404)
-
-    teacher.teachedCount += 1
-    learner.learnedCount += 1
-
-    teacher.credits += 5
-    learner.credits += 2
-
-    teacher.save()
-    learner.save()
-
-    return JsonResponse({"message": "Session completed"})
-
-
-# =====================================================
-# AVAILABILITY
-# =====================================================
-@csrf_exempt
-def save_calendar_slots(request):
-    body = json.loads(request.body)
-    user = User.objects.filter(username=body.get("username")).first()
-
-    if not user:
-        return JsonResponse({"error": "User not found"}, status=404)
-
-    Availability.objects.filter(user=user).delete()
-
-    for item in body.get("slots", []):
-        if item.get("day") and item.get("time"):
-            Availability.objects.create(
-                user=user,
-                day=item["day"],
-                time=item["time"]
-            )
-
-    return JsonResponse({"message": "Saved"})
-
-
-def get_calendar_slots(request):
-    user = User.objects.filter(username=request.GET.get("username")).first()
-
-    if not user:
-        return JsonResponse([], safe=False)
-
-    data = Availability.objects.filter(user=user)
-
-    result = {}
-    for d in data:
-        result.setdefault(d.day, []).append(d.time)
-
-    return JsonResponse([
-        {"day": k, "slots": v}
-        for k, v in result.items()
-    ], safe=False)
-
-
-# =====================================================
-# REQUEST SYSTEM
-# =====================================================
-@csrf_exempt
-def send_request(request):
-    print("SEND REQUEST HIT")
-
-    if request.method != "POST":
-        return JsonResponse({"error": "POST required"}, status=400)
-
-    body = json.loads(request.body)
-    print(body)
-
-    sender = User.objects.filter(id=body.get("sender_id")).first()
-    receiver = User.objects.filter(id=body.get("receiver_id")).first()
-
-    if not sender or not receiver:
-        return JsonResponse({"error": "User not found"}, status=404)
-
-    req = Request.objects.create(
-        sender=sender,
-        receiver=receiver,
-        skill=body.get("skill", "General"),
-        language=body.get("language", "English"),
-        status="pending"
-    )
-
-    return JsonResponse({
-        "message": "Request sent",
-        "request_id": req.id
-    })
-
-def get_requests(request, user_id):
-    user = User.objects.filter(id=user_id).first()
-
-    if not user:
-        return JsonResponse([], safe=False)
-
-    reqs = Request.objects.filter(receiver=user, status="pending")
+# ================= REQUEST =================
+def api_get_users(request):
+    users = User.objects.all()
 
     return JsonResponse([
         {
-            "request_id": r.id,
-            "sender_name": r.sender.name,
-            "skill": r.skill,
-            "language": r.language,
-            "status": r.status,
+            "user_id": u.user_id,
+            "name": u.full_name,
+            "email": u.email
+        }
+        for u in users
+    ], safe=False)
+
+
+@csrf_exempt
+def send_request(request):
+    if request.method == "POST":
+        data = json.loads(request.body)
+
+        sender = User.objects.get(user_id=data.get("sender_id"))
+        receiver = User.objects.get(user_id=data.get("receiver_id"))
+
+        skill = Skill.objects.filter(
+            skill_name=data.get("skill"),
+            language=data.get("language")
+        ).first()
+
+        SkillRequest.objects.create(
+            sender=sender,
+            receiver=receiver,
+            skill=skill,
+            status="pending"
+        )
+
+        return JsonResponse({"message": "Request sent"})
+
+    return JsonResponse({"error": "POST only"}, status=400)
+
+
+def get_requests(request, user_id):
+    reqs = SkillRequest.objects.filter(receiver__user_id=user_id)
+
+    return JsonResponse([
+        {
+            "request_id": r.request_id,
+            "sender_name": r.sender.full_name,
+            "skill": r.skill.skill_name,
+            "status": r.status
         }
         for r in reqs
     ], safe=False)
 
-# views.py
 
+# ================= ACCEPT REQUEST =================
 @csrf_exempt
 def accept_request(request):
-    if request.method != "POST":
-        return JsonResponse({"error": "POST required"}, status=400)
+    if request.method == "POST":
+        data = json.loads(request.body)
 
-    body = json.loads(request.body)
+        req = SkillRequest.objects.get(request_id=data.get("request_id"))
+        if req.status != "accepted":
+            req.status = "accepted"
+            req.save()
 
-    req = Request.objects.filter(id=body.get("request_id")).first()
+        sender = req.sender
+        receiver = req.receiver
 
-    if not req:
-        return JsonResponse({"error": "Request not found"}, status=404)
+        rooms = ChatRoom.objects.all()
+        existing_room = None
 
-    # mark accepted
-    req.status = "accepted"
-    req.save()
+        for room in rooms:
+            users = list(room.users.all())
+            user_ids = [u.user_id for u in users]
 
-    # create chat room for both users
-    room = ChatRoom.objects.filter(
-        models.Q(user1=req.sender, user2=req.receiver) |
-        models.Q(user1=req.receiver, user2=req.sender)
-    ).first()
+            if sender.user_id in user_ids and receiver.user_id in user_ids:
+                existing_room = room
+                break
 
-    if not room:
-        room = ChatRoom.objects.create(
-            user1=req.sender,
-            user2=req.receiver
-        )
+        if not existing_room:
+            room = ChatRoom.objects.create()
+            room.users.add(sender)
+            room.users.add(receiver)
 
-    return JsonResponse({
-        "message": "Accepted",
-        "room_id": room.id
-    })
+            print("ROOM CREATED:", room.id)
+        else:
+            print("ROOM EXISTS:", existing_room.id)
 
-@csrf_exempt
-def reject_request(request):
-    if request.method != "POST":
-        return JsonResponse({"error": "POST required"}, status=400)
+        return JsonResponse({"message": "Accepted + chat ready"})
 
-    req = Request.objects.filter(id=json.loads(request.body).get("request_id")).first()
+    return JsonResponse({"error": "POST only"}, status=400)
 
-    if not req:
-        return JsonResponse({"error": "Request not found"}, status=404)
-
-    req.status = "rejected"
-    req.save()
-
-    return JsonResponse({"message": "Rejected"})
-
-
-# =====================================================
-# CHAT SYSTEM
-# =====================================================
-# views.py
 
 def get_chats(request, user_id):
-    rooms = ChatRoom.objects.filter(
-        models.Q(user1_id=user_id) |
-        models.Q(user2_id=user_id)
-    )
+    try:
+        data = []
 
-    data = []
+        rooms = ChatRoom.objects.all()
 
-    for room in rooms:
-        other = room.user2 if room.user1.id == user_id else room.user1
+        for room in rooms:
+            users = list(room.users.all())
+            user_ids = [u.user_id for u in users]
 
-        last = Message.objects.filter(
-            room=room
-        ).order_by("-created_at").first()
+            if int(user_id) not in user_ids:
+                continue
 
-        data.append({
-            "room_id": room.id,
+            other_user = None
+            for u in users:
+                if u.user_id != int(user_id):
+                    other_user = u
+                    break
 
-            # FULL USER PROFILE
-            "user_id": other.id,
-            "username": other.username,
-            "name": other.name,
-            "email": other.email,
-            "bio": other.bio,
-            "credits": other.credits,
+            if other_user:
+                data.append({
+                    "room_id": room.id,
+                    "name": other_user.full_name,
+                    "last_message": ""
+                })
 
-            "last_message": last.text if last else ""
-        })
+        print("FINAL CHAT LIST:", data)
 
-    return JsonResponse(data, safe=False)
+        return JsonResponse(data, safe=False)
+
+    except Exception as e:
+        print("ERROR:", e)
+        return JsonResponse({"error": str(e)}, status=500)
 
 
 def get_messages(request, room_id):
-    msgs = Message.objects.filter(
-        room_id=room_id
-    ).order_by("created_at")
+    print(" FETCHING MESSAGES FOR ROOM:", room_id)
+
+    msgs = Message.objects.filter(room__id=room_id).order_by("timestamp")
+
+    print("MESSAGES:", msgs.count())
 
     return JsonResponse([
         {
-            "sender": m.sender.id,
+            "sender": m.sender.user_id,
             "text": m.text
         }
         for m in msgs
     ], safe=False)
 
-
+# ================= SEND MESSAGE =================
 @csrf_exempt
 def send_message(request):
-    if request.method != "POST":
-        return JsonResponse({"error": "POST required"}, status=400)
+    if request.method == "POST":
+        data = json.loads(request.body)
 
-    body = json.loads(request.body)
+        sender = User.objects.get(user_id=data.get("sender_id"))
+        room = ChatRoom.objects.get(id=data.get("room_id"))
 
-    room = ChatRoom.objects.filter(
-        id=body.get("room_id")
-    ).first()
+        Message.objects.create(
+            sender=sender,
+            room=room,
+            text=data.get("text"),
+            type=data.get("type", "text"),
+            status="pending"
+        )
 
-    sender = User.objects.filter(
-        id=body.get("sender_id")
-    ).first()
+        return JsonResponse({"message": "sent"})
 
-    if not room or not sender:
-        return JsonResponse({"error": "Invalid room or sender"}, status=404)
+    return JsonResponse({"error": "POST only"}, status=400)
 
-    Message.objects.create(
-        room=room,
-        sender=sender,
-        text=body.get("text")
-    )
 
-    return JsonResponse({"message": "sent"})
+# ================= SKILLS =================
+@csrf_exempt
+def save_user_skills(request):
+    if request.method == "POST":
+        data = json.loads(request.body)
+
+        user = User.objects.get(user_id=data.get("user_id"))
+
+        for s in data.get("teach_skills", []):
+            skill, _ = Skill.objects.get_or_create(
+                skill_name=s["skill"],
+                category=s.get("category", "General"),
+                language=s["language"]
+            )
+            UserSkill.objects.get_or_create(user=user, skill=skill, skill_type="teach")
+
+        for s in data.get("learn_skills", []):
+            skill, _ = Skill.objects.get_or_create(
+                skill_name=s["skill"],
+                category=s.get("category", "General"),
+                language=s["language"]
+            )
+            UserSkill.objects.get_or_create(user=user, skill=skill, skill_type="learn")
+
+        return JsonResponse({"message": "Saved"})
+
+    return JsonResponse({"error": "POST only"}, status=400)
+
+
+def get_user_skills(request, user_id):
+    skills = UserSkill.objects.filter(user__user_id=user_id)
+
+    return JsonResponse([
+        {
+            "skill_name": s.skill.skill_name,
+            "category": s.skill.category,
+            "language": s.skill.language,
+            "type": s.skill_type
+        }
+        for s in skills
+    ], safe=False)
+
+
+def find_matches(request, user_id):
+    user = User.objects.get(user_id=user_id)
+
+    learn_skills = UserSkill.objects.filter(user=user, skill_type="learn")
+
+    matches = []
+
+    for ls in learn_skills:
+        teachers = UserSkill.objects.filter(
+            skill=ls.skill,
+            skill_type="teach"
+        ).exclude(user=user)
+
+        for t in teachers:
+            matches.append({
+                "user_id": t.user.user_id,
+                "name": t.user.full_name,
+                "skill": ls.skill.skill_name,
+                "language": ls.skill.language
+            })
+
+    return JsonResponse(matches, safe=False)
+
+
+@csrf_exempt
+def reject_request(request):
+    if request.method == "POST":
+        data = json.loads(request.body)
+
+        req = SkillRequest.objects.get(request_id=data.get("request_id"))
+        req.status = "rejected"
+        req.save()
+
+        return JsonResponse({"message": "Request rejected"})
+
+    return JsonResponse({"error": "POST only"}, status=400)
+
+
+def discover_users(request, user_id):
+    users = User.objects.exclude(user_id=user_id)
+
+    result = []
+
+    for u in users:
+        teach = UserSkill.objects.filter(user=u, skill_type="teach")
+        learn = UserSkill.objects.filter(user=u, skill_type="learn")
+
+        result.append({
+            "user_id": u.user_id,
+            "name": u.full_name,
+            "teach": [t.skill.skill_name for t in teach],
+            "learn": [l.skill.skill_name for l in learn],
+        })
+
+    return JsonResponse(result, safe=False)
+
+@csrf_exempt
+def update_profile(request):
+    if request.method == "POST":
+        data = json.loads(request.body)
+
+        user = User.objects.get(user_id=data["user_id"])
+
+        user.username = data["name"]
+        user.email = data["email"]
+        user.save()
+
+        teach = data.get("teachSkills", [])
+        learn = data.get("learnSkills", [])
+
+        for s in teach:
+            skill_obj, _ = Skill.objects.get_or_create(
+                skill_name=s["skill"],
+                language=s["language"]
+            )
+
+            if not UserSkill.objects.filter(
+                user=user,
+                skill=skill_obj,
+                skill_type="teach"
+            ).exists():
+
+                UserSkill.objects.create(
+                    user=user,
+                    skill=skill_obj,
+                    skill_type="teach"
+                )
+
+
+        for s in learn:
+            skill_obj, _ = Skill.objects.get_or_create(
+                skill_name=s["skill"],
+                language=s["language"]
+            )
+
+            if not UserSkill.objects.filter(
+                user=user,
+                skill=skill_obj,
+                skill_type="learn"
+            ).exists():
+
+                UserSkill.objects.create(
+                    user=user,
+                    skill=skill_obj,
+                    skill_type="learn"
+                )
+
+        return JsonResponse({"message": "Profile updated"})
+
+    return JsonResponse({"error": "POST only"}, status=400)
+
+    
+def get_user(request, user_id):
+    try:
+        user = User.objects.get(user_id=user_id)
+
+        return JsonResponse({
+            "user_id": user.user_id,
+            "username": user.username,
+            "email": user.email
+        })
+    except:
+        return JsonResponse({"error": "User not found"})
+    
+
+@csrf_exempt
+def save_calendar_slots(request):
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+
+            username = data.get('username')
+            slots = data.get('slots')
+
+            from pymongo import MongoClient
+            client = MongoClient("mongodb://localhost:27017/")
+            db = client["swaplearn"]
+            collection = db["availability"]
+
+            collection.delete_many({"username": username})
+
+            for slot in slots:
+                collection.insert_one({
+                    "username": username,
+                    "day": slot["day"],
+                    "time": slot["time"]
+                })
+
+            return JsonResponse({"message": "Saved successfully"})
+
+        except Exception as e:
+            print("ERROR:", str(e))
+            return JsonResponse({"error": "Failed"}, status=500)
+
+@csrf_exempt
+def get_calendar_slots(request):
+    username = request.GET.get('username')
+
+    from pymongo import MongoClient
+    client = MongoClient("mongodb://localhost:27017/")
+    db = client["swaplearn"]
+    collection = db["availability"]
+
+    data = list(collection.find({"username": username}, {"_id": 0}))
+
+    return JsonResponse(data, safe=False)
+
+from django.db import transaction
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+import json
+from .models import UserProfile
+
+@csrf_exempt
+def end_session(request):
+    if request.method == "POST":
+        data = json.loads(request.body)
+
+        teacher_id = data.get("teacher_id")
+        learner_id = data.get("learner_id")
+
+        try:
+            with transaction.atomic():
+
+                teacher_profile = UserProfile.objects.get(
+                    user__user_id=teacher_id
+                )
+
+                learner_profile = UserProfile.objects.get(
+                    user__user_id=learner_id
+                )
+
+                if learner_profile.credit < 3:
+                    return JsonResponse({"error": "Not enough credits"}, status=400)
+
+                teacher_profile.credit += 2
+                learner_profile.credit -= 3
+
+                # Optional counters
+                teacher_profile.skills_teach_count += 1
+                learner_profile.skills_learn_count += 1
+
+                teacher_profile.save()
+                learner_profile.save()
+
+            return JsonResponse({
+                "message": "Credits updated",
+                "teacher_credit": teacher_profile.credit,
+                "learner_credit": learner_profile.credit,
+                "teacher_taught_count": teacher_profile.skills_teach_count,
+                "learner_learned_count": learner_profile.skills_learn_count
+            })
+
+        except UserProfile.DoesNotExist:
+            return JsonResponse({"error": "Profile not found"}, status=404)
+        
+def get_profile(request, user_id):
+
+    try:
+
+        profile = UserProfile.objects.get(
+            user__user_id=user_id
+        )
+
+        return JsonResponse({
+
+            "username": profile.username,
+
+            "credit": profile.credit,
+
+            "skills_learn_count":
+                profile.skills_learn_count,
+
+            "skills_teach_count":
+                profile.skills_teach_count
+        })
+
+    except UserProfile.DoesNotExist:
+
+        return JsonResponse({
+            "error": "Profile not found"
+        }, status=404)
+    
+@csrf_exempt
+def accept_call(request):
+    if request.method == "POST":
+        data = json.loads(request.body)
+
+        msg = Message.objects.get(message_id=data["message_id"])
+        msg.status = "accepted"
+        msg.save()
+
+        return JsonResponse({"message": "call accepted"})
+    
+@csrf_exempt
+def reject_call(request):
+    if request.method == "POST":
+        data = json.loads(request.body)
+
+        msg = Message.objects.get(message_id=data["message_id"])
+        msg.status = "rejected"
+        msg.save()
+
+        return JsonResponse({"message": "call rejected"})
