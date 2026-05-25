@@ -1,401 +1,263 @@
-import React, { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  StyleSheet,
-  ScrollView,
-  FlatList,
-  Alert,
-} from 'react-native';
-import { API } from '../../api';
+import React, { useState } from "react";
 
 export default function EditProfile({ user, onSave, onCancel }) {
-  const [username, setUsername] = useState('');
-  const [name, setName] = useState('');
-  const [bio, setBio] = useState('');
+
+  const [name, setName] = useState(user?.username || "");
+  const [email, setEmail] = useState(user?.email || "");
 
   const [teachSkills, setTeachSkills] = useState([]);
   const [learnSkills, setLearnSkills] = useState([]);
 
-  const [categories, setCategories] = useState({});
-  const [languages, setLanguages] = useState([]);
+  const [selectedType, setSelectedType] = useState("");
+  const [step, setStep] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("");
+  const [selectedSkill, setSelectedSkill] = useState("");
 
-  const [selectedType, setSelectedType] = useState('');
-  const [step, setStep] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('');
-  const [selectedSkill, setSelectedSkill] = useState('');
 
-  const [saving, setSaving] = useState(false);
-
-  useEffect(() => {
-    if (user) {
-      setUsername(user.username || '');
-      setName(user.name || '');
-      setBio(user.bio || '');
-      setTeachSkills(user.teachSkills || []);
-      setLearnSkills(user.learnSkills || []);
-    }
-
-    fetchMeta();
-  }, []);
-
-  const fetchMeta = async () => {
-    try {
-      const res = await fetch(`${API}/metadata/`);
-      const data = await res.json();
-
-      let obj = {};
-
-      (data.categories || []).forEach((item) => {
-        obj[item.name] = item.skills;
-      });
-
-      setCategories(obj);
-      setLanguages(data.languages || []);
-    } catch (err) {
-      console.log(err);
-    }
+  const categories = {
+    Programming: ['JavaScript', 'Python', 'Java'],
+    Music: ['Guitar', 'Piano', 'Singing'],
+    Language: ['English', 'Spanish', 'Hindi']
   };
 
+  const languages = ['English', 'Hindi', 'Kannada'];
+
   const resetFlow = () => {
-    setStep('');
-    setSelectedCategory('');
-    setSelectedSkill('');
+    setStep("");
+    setSelectedCategory("");
+    setSelectedSkill("");
   };
 
   const addSkill = (lang) => {
-    const item = {
+    const newSkill = {
       skill: selectedSkill,
       language: lang,
+      category: selectedCategory,
     };
 
-    if (selectedType === 'teach') {
-      setTeachSkills([...teachSkills, item]);
+    if (selectedType === "teach") {
+      setTeachSkills([...teachSkills, newSkill]);
     } else {
-      setLearnSkills([...learnSkills, item]);
+      setLearnSkills([...learnSkills, newSkill]);
     }
 
     resetFlow();
   };
 
   const removeSkill = (type, index) => {
-    if (type === 'teach') {
+    if (type === "teach") {
       setTeachSkills(teachSkills.filter((_, i) => i !== index));
     } else {
       setLearnSkills(learnSkills.filter((_, i) => i !== index));
     }
   };
 
-  const saveProfile = async () => {
+  const handleSave = async () => {
     try {
-      setSaving(true);
-
-      const payload = {
-        username: user.username, // old username
-        newUsername: username.trim(),
-        name: name.trim(),
-        bio: bio.trim(),
-        teachSkills,
-        learnSkills,
-      };
-
-      const res = await fetch(`${API}/update_profile/`, {
-        method: 'PUT',
+      const res = await fetch("http://127.0.0.1:8000/api/update-profile/", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({
+          user_id: user.user_id,
+          name,
+          email,
+          teachSkills,
+          learnSkills,
+        }),
       });
 
-      const data = await res.json();
-      setSaving(false);
-
       if (res.ok) {
-        Alert.alert('Success', 'Profile Updated');
-
-        onSave({
-          ...user,
-          username: data.username || username,
-          name: data.name || name,
-          bio: data.bio || bio,
-          teachSkills: data.teachSkills || teachSkills,
-          learnSkills: data.learnSkills || learnSkills,
-        });
-      } else {
-        Alert.alert('Error', data.error || 'Update failed');
+        onSave({ name, email, teachSkills, learnSkills });
       }
-    } catch (error) {
-      setSaving(false);
-      console.log(error);
-      Alert.alert('Error', 'Server error');
+    } catch (err) {
+      console.log(err);
     }
   };
 
-  const renderCard = (item, onPress) => (
-    <TouchableOpacity style={styles.cardOption} onPress={onPress}>
-      <Text style={styles.cardText}>{item}</Text>
-    </TouchableOpacity>
-  );
-
-  const renderChip = (item, index, type) => (
-    <TouchableOpacity
-      key={index}
-      style={styles.chip}
-      onPress={() => removeSkill(type, index)}
-    >
-      <Text style={styles.chipText}>
-        {item.skill} ({item.language}) ✕
-      </Text>
-    </TouchableOpacity>
-  );
-
   return (
-    <ScrollView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Edit Profile</Text>
-      </View>
+    <div style={styles.container}>
+      <div style={styles.card}>
 
-      <View style={styles.box}>
-        <TextInput
+        <h2 style={styles.heading}>Edit Profile</h2>
+
+        {/* USERNAME */}
+        <label style={styles.label}>Username</label>
+        <input
+          value={name}
+          onChange={(e) => setName(e.target.value)}
           style={styles.input}
-          placeholder="Username"
-          value={username}
-          onChangeText={setUsername}
         />
 
-        <TextInput
+        {/* EMAIL */}
+        <label style={styles.label}>Email</label>
+        <input
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
           style={styles.input}
-          placeholder="Full Name"
-          value={name}
-          onChangeText={setName}
         />
 
         {/* TEACH */}
-        <Text style={styles.title}>Teach Skills</Text>
-
-        <View style={styles.skillWrap}>
-          {teachSkills.map((item, i) =>
-            renderChip(item, i, 'teach')
-          )}
-
-          <TouchableOpacity
-            style={styles.addBtn}
-            onPress={() => {
-              setSelectedType('teach');
-              setStep('category');
-            }}
-          >
-            <Text style={styles.addText}>+ Add</Text>
-          </TouchableOpacity>
-        </View>
+        <h3 style={styles.subHeading}>Teach Skills</h3>
+        <div style={styles.skillBar}>
+          {teachSkills.map((item, index) => (
+            <div key={index} style={styles.chip}>
+              {item.skill} ({item.language})
+              <span onClick={() => removeSkill("teach", index)} style={styles.remove}>×</span>
+            </div>
+          ))}
+          <button style={styles.addBtn} onClick={() => {
+            setSelectedType("teach");
+            setStep("category");
+          }}>+ Add</button>
+        </div>
 
         {/* LEARN */}
-        <Text style={styles.title}>Learn Skills</Text>
+        <h3 style={styles.subHeading}>Learn Skills</h3>
+        <div style={styles.skillBar}>
+          {learnSkills.map((item, index) => (
+            <div key={index} style={styles.chip}>
+              {item.skill} ({item.language})
+              <span onClick={() => removeSkill("learn", index)} style={styles.remove}>×</span>
+            </div>
+          ))}
+          <button style={styles.addBtn} onClick={() => {
+            setSelectedType("learn");
+            setStep("category");
+          }}>+ Add</button>
+        </div>
 
-        <View style={styles.skillWrap}>
-          {learnSkills.map((item, i) =>
-            renderChip(item, i, 'learn')
-          )}
+        {/* FLOW */}
+        {step === "category" && Object.keys(categories).map((cat) => (
+          <div key={cat} style={styles.option} onClick={() => {
+            setSelectedCategory(cat);
+            setStep("skill");
+          }}>{cat}</div>
+        ))}
 
-          <TouchableOpacity
-            style={styles.addBtn}
-            onPress={() => {
-              setSelectedType('learn');
-              setStep('category');
-            }}
-          >
-            <Text style={styles.addText}>+ Add</Text>
-          </TouchableOpacity>
-        </View>
+        {step === "skill" && categories[selectedCategory].map((skill) => (
+          <div key={skill} style={styles.option} onClick={() => {
+            setSelectedSkill(skill);
+            setStep("language");
+          }}>{skill}</div>
+        ))}
 
-        {/* CATEGORY */}
-        {step === 'category' && (
-          <>
-            <Text style={styles.title}>Choose Category</Text>
+        {step === "language" && languages.map((lang) => (
+          <div key={lang} style={styles.option} onClick={() => addSkill(lang)}>
+            {lang}
+          </div>
+        ))}
 
-            <FlatList
-              data={Object.keys(categories)}
-              numColumns={2}
-              scrollEnabled={false}
-              keyExtractor={(item) => item}
-              renderItem={({ item }) =>
-                renderCard(item, () => {
-                  setSelectedCategory(item);
-                  setStep('skill');
-                })
-              }
-            />
-          </>
-        )}
+        {/* BUTTONS */}
+        <div style={styles.btnRow}>
+          <button onClick={handleSave} style={styles.saveBtn}>Save Changes</button>
+          <button onClick={onCancel} style={styles.cancelBtn}>Cancel</button>
+        </div>
 
-        {/* SKILL */}
-        {step === 'skill' && (
-          <>
-            <Text style={styles.title}>Choose Skill</Text>
-
-            <FlatList
-              data={categories[selectedCategory] || []}
-              numColumns={2}
-              scrollEnabled={false}
-              keyExtractor={(item) => item}
-              renderItem={({ item }) =>
-                renderCard(item, () => {
-                  setSelectedSkill(item);
-                  setStep('language');
-                })
-              }
-            />
-          </>
-        )}
-
-        {/* LANGUAGE */}
-        {step === 'language' && (
-          <>
-            <Text style={styles.title}>Choose Language</Text>
-
-            <FlatList
-              data={languages}
-              numColumns={2}
-              scrollEnabled={false}
-              keyExtractor={(item) => item}
-              renderItem={({ item }) =>
-                renderCard(item, () => addSkill(item))
-              }
-            />
-          </>
-        )}
-
-        {/* SAVE */}
-        <TouchableOpacity
-          style={styles.saveBtn}
-          onPress={saveProfile}
-          disabled={saving}
-        >
-          <Text style={styles.saveText}>
-            {saving ? 'Saving...' : 'Save Changes'}
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.cancelBtn}
-          onPress={onCancel}
-        >
-          <Text style={styles.cancelText}>Cancel</Text>
-        </TouchableOpacity>
-      </View>
-    </ScrollView>
+      </div>
+    </div>
   );
 }
 
-const styles = StyleSheet.create({
+/* STYLES */
+
+const styles = {
   container: {
-    flex: 1,
-    backgroundColor: '#f2f6f3',
+    backgroundColor: "#eef2f3",
+    minHeight: "100vh",
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center"
   },
 
-  header: {
-    backgroundColor: '#151a3c',
-    padding: 25,
+  card: {
+    backgroundColor: "#fff",
+    padding: "30px",
+    borderRadius: "15px",
+    width: "450px",
+    boxShadow: "0 5px 15px rgba(0,0,0,0.1)"
   },
 
-  headerTitle: {
-    color: '#fff',
-    fontSize: 26,
-    fontWeight: 'bold',
+  heading: {
+    marginBottom: "20px"
   },
 
-  box: {
-    margin: 20,
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 20,
-    elevation: 4,
+  label: {
+    fontSize: "14px",
+    marginTop: "10px"
   },
 
   input: {
-    backgroundColor: '#eef1f5',
-    padding: 14,
-    borderRadius: 10,
-    marginBottom: 12,
+    width: "100%",
+    padding: "10px",
+    marginBottom: "10px",
+    borderRadius: "8px",
+    border: "1px solid #ccc"
   },
 
-  title: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginTop: 12,
-    marginBottom: 10,
-    color: '#151a3c',
+  subHeading: {
+    marginTop: "15px"
   },
 
-  skillWrap: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    backgroundColor: '#e9f7eb',
-    padding: 8,
-    borderRadius: 12,
+  skillBar: {
+    display: "flex",
+    flexWrap: "wrap",
+    gap: "5px",
+    backgroundColor: "#e6f4ea",
+    padding: "8px",
+    borderRadius: "10px"
   },
 
   chip: {
-    backgroundColor: '#fff',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 16,
-    margin: 4,
+    backgroundColor: "white",
+    padding: "5px 10px",
+    borderRadius: "15px",
+    border: "1px solid #ddd"
   },
 
-  chipText: {
-    fontSize: 12,
+  remove: {
+    marginLeft: "8px",
+    cursor: "pointer",
+    color: "red"
   },
 
   addBtn: {
-    backgroundColor: '#4CAF50',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    margin: 4,
+    backgroundColor: "#4CAF50",
+    color: "white",
+    border: "none",
+    padding: "6px 10px",
+    borderRadius: "10px",
+    cursor: "pointer"
   },
 
-  addText: {
-    color: '#fff',
-    fontWeight: 'bold',
+  option: {
+    backgroundColor: "#eee",
+    padding: "10px",
+    marginTop: "5px",
+    borderRadius: "8px",
+    cursor: "pointer"
   },
 
-  cardOption: {
-    backgroundColor: '#eef1f5',
-    width: '47%',
-    margin: '1.5%',
-    padding: 14,
-    borderRadius: 10,
-    alignItems: 'center',
-  },
-
-  cardText: {
-    fontWeight: '600',
-    color: '#151a3c',
+  btnRow: {
+    marginTop: "20px",
+    display: "flex",
+    justifyContent: "space-between"
   },
 
   saveBtn: {
-    backgroundColor: '#151a3c',
-    padding: 16,
-    borderRadius: 12,
-    marginTop: 22,
-    alignItems: 'center',
-  },
-
-  saveText: {
-    color: '#fff',
-    fontWeight: 'bold',
+    backgroundColor: "#151a3c",
+    color: "white",
+    padding: "10px",
+    borderRadius: "8px",
+    border: "none",
+    width: "60%"
   },
 
   cancelBtn: {
-    marginTop: 14,
-    alignItems: 'center',
-  },
-
-  cancelText: {
-    color: '#666',
-    fontWeight: '600',
-  },
-});
+    padding: "10px",
+    borderRadius: "8px",
+    border: "1px solid #ccc",
+    width: "35%"
+  }
+};

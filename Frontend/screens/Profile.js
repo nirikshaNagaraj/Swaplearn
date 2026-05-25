@@ -6,250 +6,200 @@ import {
   StyleSheet,
   ScrollView,
 } from 'react-native';
-
 import Navbar from './Navbar';
-import EditProfile from './EditProfile';
+import EditProfile from "./EditProfile";
 
-export default function Profile({
-  user,
-  setUser,
-  onLogout,
-  ...props
-}) {
+export default function ProfilePage({ user, goToRequests, handleLogout, ...props }) {
+
   const [activeTab, setActiveTab] = useState('skills');
-  const [editMode, setEditMode] = useState(false);
   const [skills, setSkills] = useState([]);
+  const [isEditing, setIsEditing] = useState(false);
+  const [currentUser, setCurrentUser] = useState(user);
+  const [availability, setAvailability] = useState({});
 
-  // 🔥 FIX: grouped availability
-  const [availability, setAvailability] = useState([]);
+  const userData = currentUser
+    ? {
+        name: currentUser.username || "User",
+        bio: "",
+        credits: 0,
+        learnt: 0,
+        taught: 0,
+      }
+    : {
+        name: "Guest",
+        bio: "",
+        credits: 0,
+        learnt: 0,
+        taught: 0,
+      };
+
 
   useEffect(() => {
-    if (user) {
-      loadSkills(user);
-      loadAvailability();
-    }
-  }, [user]);
+    if (!currentUser?.user_id) return;
 
-  const loadSkills = (userData) => {
-    const teach = (userData?.teachSkills || []).map((item) => ({
-      type: 'teach',
-      skill_name: item.skill,
-      language: item.language,
-    }));
+    fetch(`http://127.0.0.1:8000/api/user-skills/${currentUser.user_id}/`)
+      .then(res => res.json())
+      .then(data => setSkills(data))
+      .catch(err => console.log(err));
+  }, [currentUser]);
 
-    const learn = (userData?.learnSkills || []).map((item) => ({
-      type: 'learn',
-      skill_name: item.skill,
-      language: item.language,
-    }));
 
-    setSkills([...teach, ...learn]);
-  };
+  useEffect(() => {
+    if (!user?.user_id) return;
 
-  // 🔥 FIX: fetch from backend and group correctly
-const loadAvailability = async () => {
-  try {
-    const res = await fetch(
-      `http://127.0.0.1:8000/api/get_calendar_slots/?username=${user.username}`
-    );
+    fetch(`http://127.0.0.1:8000/api/get-user/${user.user_id}/`)
+      .then(res => res.json())
+      .then(data => {
+        setCurrentUser(data);
+      })
+      .catch(err => console.log(err));
+  }, []);
 
-    const data = await res.json();
+  // ONLY CHANGE IS IN THIS useEffect DEPENDENCY
 
-    console.log("AVAILABILITY RAW:", data);
+  useEffect(() => {
+    if (!currentUser) return;
 
-    const grouped = {};
+    const username = (currentUser.username || currentUser.name || "")
+      .replace(/\s/g, "")
+      .toLowerCase();
 
-    data.forEach(item => {
-      const day = item.day;
-      const slots = item.slots || [];
+    console.log("FETCH USERNAME:", username);
 
-      if (!grouped[day]) {
-        grouped[day] = [];
-      }
+    fetch(`http://127.0.0.1:8000/api/get_calendar_slots/?username=${username}`)
+      .then(res => res.json())
+      .then(data => {
+        console.log("DATA FROM API:", data);
 
-      grouped[day] = [...grouped[day], ...slots];
-    });
+        let mapped = {};
 
-    const formatted = Object.keys(grouped).map(day => ({
-      day,
-      slots: grouped[day]
-    }));
+        data.forEach(item => {
+          if (!mapped[item.day]) {
+            mapped[item.day] = [];
+          }
+          mapped[item.day].push(item.time);
+        });
 
-    console.log("AVAILABILITY FINAL:", formatted);
+        setAvailability(mapped);
+      })
+      .catch(err => console.log(err));
 
-    setAvailability(formatted);
-
-  } catch (err) {
-    console.log("availability error:", err);
-  }
-};
-
-  if (!user) {
-    return (
-      <View style={{ padding: 40 }}>
-        <Text>Loading...</Text>
-      </View>
-    );
-  }
-
-  if (editMode) {
-    return (
-      <EditProfile
-        user={user}
-        onCancel={() => setEditMode(false)}
-        onSave={(updatedUser) => {
-          setUser(updatedUser);
-          loadSkills(updatedUser);
-          loadAvailability();
-          setEditMode(false);
-        }}
-      />
-    );
-  }
-
-  const teachSkills = skills.filter((i) => i.type === 'teach');
-  const learnSkills = skills.filter((i) => i.type === 'learn');
-
+  }, [currentUser, props.previousScreen]);  
+  
   return (
-    <ScrollView style={styles.container}>
-      <Navbar {...props} />
+    <>
+      {isEditing ? (
 
-      {/* HEADER */}
-      <View style={styles.headerCard}>
-        <View style={styles.avatar}>
-          <Text style={styles.avatarText}>👤</Text>
-        </View>
+        <EditProfile
+          user={currentUser}   // ✅ PASS currentUser
+          onSave={(updatedUser) => {
 
-        <Text style={styles.name}>
-          {user.name || user.username}
-        </Text>
-        <TouchableOpacity
-  style={styles.bell}
-  onPress={() => props.goToRequests?.()}
->
-  <Text style={styles.bellText}>🔔</Text>
-</TouchableOpacity>
+            setCurrentUser({
+              ...currentUser,
+              username: updatedUser.name,
+              email: updatedUser.email
+            });
 
-        {/* STATS */}
-        <View style={styles.stats}>
-  <Stat number={user.credits || 0} label="Credits" />
-  <Stat number={user.learnedCount || 0} label="Learned" />
-  <Stat number={user.teachedCount || 0} label="Teached" />
-</View>
+            setIsEditing(false);
+          }}
+          onCancel={() => setIsEditing(false)}
+        />
 
-        {/* ACTIONS */}
-        <View style={styles.actions}>
-          <TouchableOpacity
-            style={styles.editBtn}
-            onPress={() => setEditMode(true)}
-          >
-            <Text style={styles.editText}>Edit</Text>
-          </TouchableOpacity>
+      ) : (
 
-          <TouchableOpacity style={styles.shareBtn}>
-            <Text style={styles.shareText}>Share</Text>
-          </TouchableOpacity>
-        </View>
+        <ScrollView style={styles.container}>
 
-        {/* LOGOUT */}
-        <TouchableOpacity
-          style={styles.logoutBtn}
-          onPress={() => onLogout?.()}
-        >
-          <Text style={styles.logoutText}>Logout</Text>
-        </TouchableOpacity>
-      </View>
+          <Navbar {...props} currentPage="profile" goToRequests={goToRequests} />
 
-      {/* TABS */}
-      <View style={styles.tabs}>
-        <Tab title="Skills" active={activeTab === 'skills'} onPress={() => setActiveTab('skills')} />
-        <Tab title="Teaching" active={activeTab === 'teaching'} onPress={() => setActiveTab('teaching')} />
-        <Tab title="Learning" active={activeTab === 'learning'} onPress={() => setActiveTab('learning')} />
-      </View>
+          {/* HEADER */}
+          <View style={styles.headerCard}>
 
-      {/* CONTENT */}
-      <View style={styles.section}>
-
-        {activeTab === 'skills' && (
-          <View>
-
-            {/* LEARNING */}
-            <Text style={styles.sectionTitle}>I want to learn</Text>
-            <View style={styles.grid}>
-              {learnSkills.length === 0 ? (
-                <Text>No learning skills</Text>
-              ) : (
-                learnSkills.map((item, i) => (
-                  <SkillCard key={i} skill={item.skill_name} level={item.language} />
-                ))
-              )}
-            </View>
-
-            {/* TEACHING */}
-            <Text style={styles.sectionTitle}>I can teach</Text>
-            <View style={styles.grid}>
-              {teachSkills.length === 0 ? (
-                <Text>No teaching skills</Text>
-              ) : (
-                teachSkills.map((item, i) => (
-                  <SkillCard key={i} skill={item.skill_name} level={item.language} />
-                ))
-              )}
-            </View>
-
-            {/* ✅ FIXED AVAILABILITY */}
-            <Text style={styles.sectionTitle}>📅 Availability</Text>
-
-
-{availability?.length ? (
-  availability.map((item, i) => (
-    <View key={i} style={{ marginBottom: 10 }}>
-
-      <Text style={{ fontWeight: 'bold', color: '#151a3c' }}>
-        {item.day}
-      </Text>
-
-      <Text style={{ color: '#555', marginTop: 2 }}>
-        {item.slots?.length
-          ? item.slots.join(' • ')
-          : 'No slots'}
-      </Text>
-
-    </View>
-  ))
-) : (
-  <Text style={{ color: '#aaa' }}>
-    No availability set
-  </Text>
-)}
-
-            {/* BUTTON */}
-            <TouchableOpacity
-              style={styles.avlBtn}
-              onPress={() => {
-                props.goToAvailability?.({
-                  user,
-                  onSave: loadAvailability
-                });
-              }}
+            <TouchableOpacity 
+              style={styles.backButton}
+              onPress={() => props.setScreen(props.previousScreen)}
             >
-              <Text style={styles.avlBtnText}>
-                📅 Set Availability
-              </Text>
+              <Text style={styles.backText}>Back</Text>
+            </TouchableOpacity>
+
+            <View style={styles.avatar}>
+              <Text style={styles.avatarText}>👤</Text>
+            </View>
+
+            <Text style={styles.name}>{userData.name}</Text>
+            <Text style={styles.bio}>{userData.bio}</Text>
+
+            <View style={styles.stats}>
+              <Stat number={userData.credits} label="Credits" />
+              <Stat number={userData.learnt} label="Learnt" />
+              <Stat number={userData.taught} label="Taught" />
+            </View>
+
+            {/* ACTION BUTTONS */}
+            <View style={styles.actions}>
+              <TouchableOpacity
+                style={styles.editBtn}
+                onPress={() => setIsEditing(true)}
+              >
+                <Text style={styles.editText}>Edit</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity style={styles.shareBtn}>
+                <Text style={styles.shareText}>Share</Text>
+              </TouchableOpacity>
+            </View>
+
+            <TouchableOpacity onPress={handleLogout}>
+              <Text style={styles.logoutText}>Logout</Text>
             </TouchableOpacity>
 
           </View>
-        )}
 
-        {activeTab === 'teaching' && <Text>No teaching sessions yet</Text>}
-        {activeTab === 'learning' && <Text>No learning sessions yet</Text>}
+          {/* TABS */}
+          <View style={styles.tabs}>
+            <Tab title="Skills" active={activeTab === 'skills'} onPress={() => setActiveTab('skills')} />
+            <Tab title="Teaching" active={activeTab === 'teaching'} onPress={() => setActiveTab('teaching')} />
+            <Tab title="Learning" active={activeTab === 'learning'} onPress={() => setActiveTab('learning')} />
+            <Tab title="Feedback" active={activeTab === 'feedback'} onPress={() => setActiveTab('feedback')} />
+          </View>
 
-      </View>
-    </ScrollView>
+          {/* CONTENT */}
+          <View style={styles.section}>
+            {activeTab === 'skills' && <SkillsSection skills={skills} />}
+            {activeTab === 'teaching' && <Empty title="Teaching Sessions" />}
+            {activeTab === 'learning' && <Empty title="Learning Sessions" />}
+            {activeTab === 'feedback' && <Empty title="Feedback" />}
+          </View>
+          <View style={{ padding: 20 }}>
+            <Text style={{ fontWeight: 'bold', fontSize: 16, marginBottom: 10 }}>
+              Your Availability
+            </Text>
+
+            {Object.keys(availability).length === 0 ? (
+              <Text>No availability set</Text>
+            ) : (
+              Object.keys(availability).map(day => (
+                <View key={day} style={{ marginBottom: 5 }}>
+                  <Text style={{ fontWeight: 'bold' }}>{day}</Text>
+                  <Text>{availability[day].join(', ')}</Text>
+                </View>
+              ))
+            )}
+          </View>
+          <TouchableOpacity
+            style={styles.availabilityBtn}
+            onPress={() => props.setScreen('availability')}
+          >
+            <Text style={styles.availabilityText}>Set Availability</Text>
+          </TouchableOpacity>
+        </ScrollView>
+
+      )}
+    </>
   );
 }
 
-/* COMPONENTS */
+
+
 const Stat = ({ number, label }) => (
   <View style={styles.stat}>
     <Text style={styles.statNumber}>{number}</Text>
@@ -259,14 +209,47 @@ const Stat = ({ number, label }) => (
 
 const Tab = ({ title, active, onPress }) => (
   <TouchableOpacity
-    style={[styles.tab, active && styles.activeTab]}
     onPress={onPress}
+    style={[styles.tab, active && styles.activeTab]}
   >
     <Text style={[styles.tabText, active && styles.activeTabText]}>
       {title}
     </Text>
   </TouchableOpacity>
 );
+
+const SkillsSection = ({ skills }) => {
+  const learn = skills.filter(s => s.type === "learn");
+  const teach = skills.filter(s => s.type === "teach");
+
+  return (
+    <View>
+
+      <Text style={styles.sectionTitle}>I want to learn</Text>
+      <View style={styles.grid}>
+        {learn.length === 0 ? (
+          <Text>No learning skills</Text>
+        ) : (
+          learn.map((item, i) => (
+            <SkillCard key={i} skill={item.skill_name} level={item.language} />
+          ))
+        )}
+      </View>
+
+      <Text style={styles.sectionTitle}>I can teach</Text>
+      <View style={styles.grid}>
+        {teach.length === 0 ? (
+          <Text>No teaching skills</Text>
+        ) : (
+          teach.map((item, i) => (
+            <SkillCard key={i} skill={item.skill_name} level={item.language} />
+          ))
+        )}
+      </View>
+
+    </View>
+  );
+};
 
 const SkillCard = ({ skill, level }) => (
   <View style={styles.skillCard}>
@@ -275,55 +258,116 @@ const SkillCard = ({ skill, level }) => (
   </View>
 );
 
-/* STYLES (UNCHANGED) */
+const Empty = ({ title }) => (
+  <View>
+    <Text style={styles.sectionTitle}>{title}</Text>
+    <View style={styles.emptyBox}>
+      <Text style={{ color: '#aaa' }}>Nothing here yet</Text>
+    </View>
+  </View>
+);
+
+
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f0f4f0' },
-  headerCard: { backgroundColor: '#151a3c', padding: 25, alignItems: 'center' },
-  avatar: { width: 90, height: 90, borderRadius: 45, backgroundColor: '#fff', justifyContent: 'center', alignItems: 'center' },
-  avatarText: { fontSize: 30 },
-  name: { color: '#fff', fontSize: 24, fontWeight: 'bold', marginTop: 10 },
-  stats: { flexDirection: 'row', gap: 30, marginTop: 18 },
-  stat: { alignItems: 'center' },
-  statNumber: { color: '#4CAF50', fontSize: 18, fontWeight: 'bold' },
-  statLabel: { color: '#ddd', fontSize: 13 },
-  actions: { flexDirection: 'row', gap: 15, marginTop: 18 },
-  editBtn: { backgroundColor: '#4CAF50', paddingHorizontal: 60, paddingVertical: 10, borderRadius: 22 },
-  shareBtn: { borderWidth: 1, borderColor: '#4CAF50', paddingHorizontal: 60, paddingVertical: 10, borderRadius: 22 },
-  editText: { color: '#fff', fontWeight: 'bold' },
-  shareText: { color: '#4CAF50', fontWeight: 'bold' },
-  logoutBtn: { marginTop: 10 },
-  logoutText: { color: '#ff6b6b', fontWeight: 'bold', fontSize: 13 },
-  tabs: { flexDirection: 'row', justifyContent: 'center', marginTop: 15, gap: 10 },
-  tab: { backgroundColor: '#ddd', paddingHorizontal: 15, paddingVertical: 8, borderRadius: 20 },
-  activeTab: { backgroundColor: '#4CAF50' },
-  tabText: { color: '#555' },
-  activeTabText: { color: '#fff' },
-  section: { padding: 20 },
-  sectionTitle: { fontWeight: 'bold', marginVertical: 10, color: '#151a3c' },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
-  skillCard: { backgroundColor: '#fff', width: '30%', padding: 14, borderRadius: 12, marginBottom: 10 },
-  skill: { fontWeight: 'bold', color: '#151a3c' },
-  level: { color: '#4CAF50', marginTop: 5 },
-avlBtn: {
-  marginTop: 20,
-  backgroundColor: '#151a3c',
-  paddingVertical: 12,
-  paddingHorizontal: 25,   // 👈 reduce width
-  borderRadius: 12,
-  alignSelf: 'flex-start', // 👈 important (prevents full stretch)
-  alignItems: 'center',
-},
-  avlBtnText: { color: '#fff', fontWeight: 'bold' },
-  bell: {
-  position: 'absolute',
-  top: 15,
-  right: 15,
-  padding: 10,
-  borderRadius: 25,
-  elevation: 5,
-},
 
-bellText: {
-  fontSize: 18,
-}
+  headerCard: { 
+    backgroundColor: '#151a3c', 
+    padding: 25, 
+    alignItems: 'center',
+  },
+
+  backButton: {
+    position: 'absolute',
+    top: 15,
+    left: 30,
+    backgroundColor: '#4CAF50',
+    paddingVertical: 6,
+    paddingHorizontal: 14,
+    borderRadius: 10,
+  },
+
+  backText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  availabilityBtn: {
+    marginTop: 20,
+    marginHorizontal: 20,
+    backgroundColor: '#151a3c',
+    padding: 14,
+    borderRadius: 10,
+    alignItems: 'center'
+  },
+
+  availabilityText: {
+    color: '#fff',
+    fontWeight: 'bold'
+  },
+  logoutText: {
+    color: 'red',
+    textAlign: 'center',
+    marginTop: 8,
+    fontWeight: 'bold',
+  },
+
+  avatar: {
+    width: 90, height: 90, borderRadius: 45,
+    backgroundColor: '#fff', justifyContent: 'center', alignItems: 'center'
+  },
+
+  avatarText: { fontSize: 30 },
+
+  name: { color: '#fff', fontSize: 22, fontWeight: 'bold', marginTop: 10 },
+
+  bio: { color: '#ccc', marginTop: 5 },
+
+  stats: { flexDirection: 'row', gap: 30, marginTop: 15 },
+
+  stat: { alignItems: 'center' },
+
+  statNumber: { color: '#4CAF50', fontWeight: 'bold', fontSize: 15 },
+
+  statLabel: { color: '#ccc', fontSize: 15 },
+
+  actions: { flexDirection: 'row', gap: 15, marginTop: 15 },
+
+  editBtn: { backgroundColor: '#4CAF50', paddingHorizontal: 75, paddingVertical: 10, borderRadius: 20 },
+
+  shareBtn: { borderWidth: 1, borderColor: '#4CAF50', paddingHorizontal: 75, paddingVertical: 10, borderRadius: 20 },
+
+  editText: { color: '#fff', fontWeight: 'bold' },
+
+  shareText: { color: '#4CAF50', fontWeight: 'bold' },
+
+  tabs: { flexDirection: 'row', justifyContent: 'center', marginTop: 15, gap: 10 },
+
+  tab: { paddingVertical: 8, paddingHorizontal: 15, borderRadius: 20, backgroundColor: '#e0e0e0' },
+
+  activeTab: { backgroundColor: '#4CAF50' },
+
+  tabText: { color: '#555' },
+
+  activeTabText: { color: '#fff' },
+
+  section: { padding: 20 },
+
+  sectionTitle: { fontWeight: 'bold', fontSize: 16, marginVertical: 10, color: '#151a3c' },
+
+  grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
+
+  skillCard: {
+    backgroundColor: '#fff', width: '30%', padding: 15,
+    borderRadius: 12, marginBottom: 10, elevation: 3
+  },
+
+  skill: { fontWeight: 'bold', color: '#151a3c' },
+
+  level: { color: '#4CAF50', marginTop: 5 },
+
+  emptyBox: {
+    backgroundColor: '#fff', padding: 20,
+    borderRadius: 10, alignItems: 'center'
+  },
 });

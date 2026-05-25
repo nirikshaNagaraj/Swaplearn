@@ -1,164 +1,202 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+} from 'react-native';
 import Navbar from './Navbar';
-import { API } from '../../api';
 
 export default function Requests({ user, isLoggedIn, ...props }) {
 
   const [requests, setRequests] = useState([]);
 
-  const userId = user?.user_id || user?.id;
 
-  const loadRequests = async () => {
-    if (!userId) return;
+  const loadRequests = () => {
+    if (!user) return;
 
-    try {
-      const res = await fetch(`${API}/requests/${userId}/`);
-      const data = await res.json();
-      setRequests(data);
-    } catch (err) {
-      console.log("LOAD ERROR:", err);
-    }
+    fetch(`http://127.0.0.1:8000/api/requests/${user.user_id}/`)
+      .then(res => res.json())
+      .then(data => setRequests(data))
+      .catch(err => console.log(err));
   };
 
   useEffect(() => {
     loadRequests();
-  }, [userId]);
+  }, [user]);
+
 
   const acceptRequest = async (id) => {
     try {
-      await fetch(`${API}/accept-request/`, {
+      await fetch("http://127.0.0.1:8000/api/accept-request/", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify({ request_id: id }),
       });
 
-      loadRequests();
+      alert("Accepted ✅");
+      loadRequests(); // refresh
+
     } catch (err) {
-      console.log("ACCEPT ERROR:", err);
+      console.log(err);
     }
   };
 
+
   const rejectRequest = async (id) => {
     try {
-      await fetch(`${API}/reject-request/`, {
+      await fetch("http://127.0.0.1:8000/api/reject-request/", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify({ request_id: id }),
       });
 
+      alert("Rejected ❌");
       loadRequests();
+
     } catch (err) {
-      console.log("REJECT ERROR:", err);
+      console.log(err);
     }
   };
 
   return (
-    <View style={{ flex: 1 }}>
+    <ScrollView style={styles.container}>
+      <Navbar isLoggedIn={isLoggedIn} {...props} currentPage="requests" />
 
-      {/* ✅ NAVBAR FIXED */}
-      <Navbar
-        user={user}
-        isLoggedIn={isLoggedIn}
-        goToHome={props.goToHome}
-        goToAbout={props.goToAbout}
-        goToDiscover={props.goToDiscover}
-        goToMatch={props.goToMatch}
-        goToProfile={props.goToProfile}
-        goToMessages={props.goToMessages}
-        goToLogin={props.goToLogin}
-        goToRegister={props.goToRegister}
-      />
+      <TouchableOpacity 
+        style={styles.backButton}
+        onPress={() => props.setScreen(props.previousScreen)}
+      >
+        <Text style={styles.backText}>Back</Text>
+      </TouchableOpacity>
 
-      <ScrollView style={styles.container}>
+      <Text style={styles.title}>Requests</Text>
 
-        <Text style={styles.title}>Requests</Text>
+      {!user ? (
+        <Text style={styles.empty}>Login to see requests</Text>
+      ) : requests.length === 0 ? (
+        <Text style={styles.empty}>No requests</Text>
+      ) : (
+        requests.map((r) => (
+          <View key={r.request_id} style={styles.card}>
 
-        {!userId ? (
-          <Text style={styles.msg}>Please login first</Text>
-        ) : requests.length === 0 ? (
-          <Text style={styles.msg}>No requests</Text>
-        ) : (
-          requests.map((r) => (
-            <View key={r.request_id} style={styles.card}>
+            <Text style={styles.name}>{r.sender_name}</Text>
+            <Text style={styles.skill}>Skill: {r.skill}</Text>
 
-              <Text style={styles.name}>{r.sender_name}</Text>
-              <Text>Skill: {r.skill}</Text>
-              <Text>Status: {r.status}</Text>
+            <Text style={styles.status}>
+              Status: {r.status}
+            </Text>
 
-              {r.status === "pending" && (
-                <View style={styles.row}>
+            {r.status === "pending" && (
+              <View style={styles.actions}>
 
-                  <TouchableOpacity
-                    style={styles.accept}
-                    onPress={() => acceptRequest(r.request_id)}
-                  >
-                    <Text style={{ color: "#fff" }}>Accept</Text>
-                  </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.acceptBtn}
+                  onPress={() => acceptRequest(r.request_id)}
+                >
+                  <Text style={styles.btnText}>Accept</Text>
+                </TouchableOpacity>
 
-                  <TouchableOpacity
-                    style={styles.reject}
-                    onPress={() => rejectRequest(r.request_id)}
-                  >
-                    <Text style={{ color: "#fff" }}>Reject</Text>
-                  </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.rejectBtn}
+                  onPress={() => rejectRequest(r.request_id)}
+                >
+                  <Text style={styles.btnText}>Reject</Text>
+                </TouchableOpacity>
 
-                </View>
-              )}
+              </View>
+            )}
 
-            </View>
-          ))
-        )}
-
-      </ScrollView>
-    </View>
+          </View>
+        ))
+      )}
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f5f5f5",
+    backgroundColor: '#f0f4f0',
+  },
+
+  backButton: {
+    position: 'absolute',
+    top: 65,
+    left: 20,
+    backgroundColor: '#3fad48',
+    padding: 8,
+    borderRadius: 10,
+    elevation: 3,
+  },
+
+  backText: {
+    fontSize: 12,
+    color: '#151a3c',
+    fontWeight: 'bold',
   },
 
   title: {
-    fontSize: 24,
-    textAlign: "center",
-    margin: 20,
+    fontSize: 28,
+    textAlign: 'center',
+    marginVertical: 20,
+    fontWeight: 'bold',
+    color: '#151a3c',
   },
 
-  msg: {
-    textAlign: "center",
-    marginTop: 20,
+  empty: {
+    textAlign: 'center',
+    color: 'gray',
   },
 
   card: {
-    backgroundColor: "#fff",
-    margin: 10,
-    padding: 15,
-    borderRadius: 10,
+    backgroundColor: '#fff',
+    margin: 12,
+    padding: 20,
+    borderRadius: 12,
+    elevation: 4,
   },
 
   name: {
-    fontWeight: "bold",
     fontSize: 18,
+    fontWeight: 'bold',
   },
 
-  row: {
-    flexDirection: "row",
+  skill: {
+    marginTop: 5,
+  },
+
+  status: {
     marginTop: 10,
+    fontWeight: 'bold',
+    color: '#4CAF50',
   },
 
-  accept: {
-    backgroundColor: "green",
-    padding: 10,
-    marginRight: 10,
-    borderRadius: 6,
+  actions: {
+    flexDirection: 'row',
+    marginTop: 15,
+    gap: 10,
   },
 
-  reject: {
-    backgroundColor: "red",
+  acceptBtn: {
+    backgroundColor: '#4CAF50',
     padding: 10,
-    borderRadius: 6,
+    borderRadius: 8,
+  },
+
+  rejectBtn: {
+    backgroundColor: '#f44336',
+    padding: 10,
+    borderRadius: 8,
+  },
+
+  btnText: {
+    color: '#fff',
+    fontWeight: 'bold',
   },
 });

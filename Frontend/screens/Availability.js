@@ -7,7 +7,7 @@ import {
   ScrollView,
 } from 'react-native';
 
-import { API } from '../../api';
+const API = "http://127.0.0.1:8000/api";
 
 export default function Availability({ user, goBack }) {
 
@@ -20,6 +20,13 @@ export default function Availability({ user, goBack }) {
   ];
 
   const [selected, setSelected] = useState({});
+
+  // ✅ CLEAN USERNAME (SAME EVERYWHERE)
+  const getUsername = () => {
+    return (user?.username || user?.name || "")
+      .replace(/\s/g, "")
+      .toLowerCase();
+  };
 
   // ---------------- TOGGLE SLOT ----------------
   const toggleSlot = (day, time) => {
@@ -41,10 +48,7 @@ export default function Availability({ user, goBack }) {
 
     Object.keys(selected).forEach(day => {
       selected[day].forEach(time => {
-        payload.push({
-          day: day,
-          time: time
-        });
+        payload.push({ day, time });
       });
     });
 
@@ -53,14 +57,13 @@ export default function Availability({ user, goBack }) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          username: user.username,
+          username: getUsername(),   
           slots: payload
         })
       });
 
       const data = await res.json();
       console.log("SAVE RESPONSE:", data);
-
       alert("Saved Successfully");
       goBack?.();
 
@@ -73,8 +76,12 @@ export default function Availability({ user, goBack }) {
   // ---------------- FETCH ----------------
   const fetchAvailability = async () => {
     try {
+      const username = getUsername();   // ✅ FIXED
+
+      console.log("FETCH USERNAME:", username);
+
       const res = await fetch(
-        `${API}/get_calendar_slots/?username=${user.username}`
+        `${API}/get_calendar_slots/?username=${username}`
       );
 
       const data = await res.json();
@@ -85,17 +92,13 @@ export default function Availability({ user, goBack }) {
 
       data.forEach(item => {
         const day = item.day;
-        const slots = item.slots || [];
-
-        const cleanSlots = Array.isArray(slots)
-          ? slots
-          : [slots];
+        const time = item.time;   // ✅ FIXED (NOT slots)
 
         if (!mapped[day]) {
           mapped[day] = [];
         }
 
-        mapped[day] = [...mapped[day], ...cleanSlots];
+        mapped[day].push(time);
       });
 
       console.log("MAPPED FINAL:", mapped);
@@ -107,7 +110,6 @@ export default function Availability({ user, goBack }) {
     }
   };
 
-  // 🔥 IMPORTANT FIX (YOU WERE MISSING THIS)
   useEffect(() => {
     fetchAvailability();
   }, []);

@@ -1,17 +1,8 @@
-import React, { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  StyleSheet,
-  FlatList,
-  ActivityIndicator,
-  ScrollView,
-} from 'react-native';
-import { API } from '../../api';
+import React, { useState } from 'react';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
 
 export default function Register({ switchToLogin, goBack }) {
+
   const [username, setUsername] = useState('');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -20,57 +11,40 @@ export default function Register({ switchToLogin, goBack }) {
   const [teachSkills, setTeachSkills] = useState([]);
   const [learnSkills, setLearnSkills] = useState([]);
 
-  const [categories, setCategories] = useState([]);
-  const [languages, setLanguages] = useState([]);
-
-  const [loading, setLoading] = useState(true);
-
-  const [mode, setMode] = useState(''); // teach / learn
-  const [step, setStep] = useState(''); // category / skill / language
-  const [selectedCategory, setSelectedCategory] = useState(null);
+  const [selectedType, setSelectedType] = useState('');
+  const [step, setStep] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('');
   const [selectedSkill, setSelectedSkill] = useState('');
 
-  useEffect(() => {
-    loadMetadata();
-  }, []);
-
-  const loadMetadata = async () => {
-    try {
-      const res = await fetch(`${API}/metadata/`);
-      const data = await res.json();
-
-      setCategories(data.categories || []);
-      setLanguages(data.languages || []);
-      setLoading(false);
-    } catch (error) {
-      console.log(error);
-      alert('Failed to load skills from database');
-      setLoading(false);
-    }
+  const categories = {
+    Programming: ['JavaScript', 'Python', 'Java'],
+    Music: ['Guitar', 'Piano', 'Singing'],
+    Language: ['English', 'Spanish', 'Hindi']
   };
 
-  const startAddSkill = (type) => {
-    setMode(type);
-    setStep('category');
-    setSelectedCategory(null);
+  const languages = ['English', 'Hindi', 'Kannada'];
+
+  const resetFlow = () => {
+    setStep('');
+    setSelectedCategory('');
     setSelectedSkill('');
   };
 
-  const addSkill = (language) => {
+
+  const addSkill = (lang) => {
     const newSkill = {
       skill: selectedSkill,
-      language: language,
+      language: lang,
+      category: selectedCategory,
     };
 
-    if (mode === 'teach') {
+    if (selectedType === 'teach') {
       setTeachSkills([...teachSkills, newSkill]);
     } else {
       setLearnSkills([...learnSkills, newSkill]);
     }
 
-    setStep('');
-    setSelectedCategory(null);
-    setSelectedSkill('');
+    resetFlow();
   };
 
   const removeSkill = (type, index) => {
@@ -81,50 +55,66 @@ export default function Register({ switchToLogin, goBack }) {
     }
   };
 
+
   const handleRegister = async () => {
-    if (!username || !password) {
-      alert('Username and password required');
+    if (!username || !name || !email || !password) {
+      alert("Please fill all fields");
       return;
     }
 
     try {
-      const res = await fetch(`${API}/register/`, {
-        method: 'POST',
+
+      const response = await fetch("http://127.0.0.1:8000/api/add-user/", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          username,
-          name,
-          email,
-          password,
-          teachSkills,
-          learnSkills,
+          name: name,
+          username: username,
+          email: email,
+          password: password,
         }),
       });
 
-      const data = await res.json();
+      const data = await response.json();
 
-      if (res.ok) {
-        alert('Registered Successfully');
+      if (!response.ok) {
+        alert("User creation failed ❌");
+        return;
+      }
+
+      const userId = data.id;
+
+
+      const skillResponse = await fetch("http://127.0.0.1:8000/api/save-skills/", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          user_id: userId,
+          teach_skills: teachSkills,
+          learn_skills: learnSkills,
+        }),
+      });
+
+      if (skillResponse.ok) {
+        alert("Registration Successful ✅");
         switchToLogin();
       } else {
-        alert(data.error || 'Registration Failed');
+        alert("Skills saving failed ❌");
       }
+
     } catch (error) {
       console.log(error);
-      alert('Server Error');
+      alert("Server error ❌");
     }
   };
 
-  const renderCard = (text, onPress) => (
-    <TouchableOpacity style={styles.card} onPress={onPress}>
-      <Text style={styles.cardText}>{text}</Text>
-    </TouchableOpacity>
-  );
-
   return (
-    <ScrollView contentContainerStyle={styles.container}>
+    <View style={styles.container}>
+
       <TouchableOpacity style={styles.closeBtn} onPress={goBack}>
         <Text style={styles.closeText}>✕</Text>
       </TouchableOpacity>
@@ -132,139 +122,68 @@ export default function Register({ switchToLogin, goBack }) {
       <Text style={styles.heading}>Register</Text>
 
       <View style={styles.form}>
-        <TextInput
-          placeholder="Username"
-          style={styles.input}
-          value={username}
-          onChangeText={setUsername}
-        />
 
-        <TextInput
-          placeholder="Full Name"
-          style={styles.input}
-          value={name}
-          onChangeText={setName}
-        />
-
-        <TextInput
-          placeholder="Email"
-          style={styles.input}
-          value={email}
-          onChangeText={setEmail}
-        />
-
-        <TextInput
-          placeholder="Password"
-          style={styles.input}
-          secureTextEntry
-          value={password}
-          onChangeText={setPassword}
-        />
+        <TextInput placeholder="Username" style={styles.input} value={username} onChangeText={setUsername} />
+        <TextInput placeholder="Full Name" style={styles.input} value={name} onChangeText={setName} />
+        <TextInput placeholder="Email" style={styles.input} value={email} onChangeText={setEmail} />
+        <TextInput placeholder="Password" style={styles.input} secureTextEntry value={password} onChangeText={setPassword} />
 
         {/* TEACH */}
-        <Text style={styles.label}>Skills You Teach</Text>
-
-        <View style={styles.skillBox}>
+        <Text style={styles.skillHeading}>Skills you Teach</Text>
+        <View style={styles.skillBar}>
           {teachSkills.map((item, index) => (
-            <TouchableOpacity
-              key={index}
-              style={styles.skillChip}
-              onPress={() => removeSkill('teach', index)}
-            >
-              <Text style={styles.skillText}>
-                {item.skill} ({item.language}) ✕
-              </Text>
+            <TouchableOpacity key={index} style={styles.chip} onPress={() => removeSkill('teach', index)}>
+              <Text>{item.skill} ({item.language}) ✕</Text>
             </TouchableOpacity>
           ))}
-
-          <TouchableOpacity
-            style={styles.addBtn}
-            onPress={() => startAddSkill('teach')}
-          >
+          <TouchableOpacity style={styles.addButton} onPress={() => {
+            setSelectedType('teach');
+            setStep('category');
+          }}>
             <Text style={styles.addText}>+ Add</Text>
           </TouchableOpacity>
         </View>
 
         {/* LEARN */}
-        <Text style={styles.label}>Skills You Want To Learn</Text>
-
-        <View style={styles.skillBox}>
+        <Text style={styles.skillHeading}>Skills you Want to Learn</Text>
+        <View style={styles.skillBar}>
           {learnSkills.map((item, index) => (
-            <TouchableOpacity
-              key={index}
-              style={styles.skillChip}
-              onPress={() => removeSkill('learn', index)}
-            >
-              <Text style={styles.skillText}>
-                {item.skill} ({item.language}) ✕
-              </Text>
+            <TouchableOpacity key={index} style={styles.chip} onPress={() => removeSkill('learn', index)}>
+              <Text>{item.skill} ({item.language}) ✕</Text>
             </TouchableOpacity>
           ))}
-
-          <TouchableOpacity
-            style={styles.addBtn}
-            onPress={() => startAddSkill('learn')}
-          >
+          <TouchableOpacity style={styles.addButton} onPress={() => {
+            setSelectedType('learn');
+            setStep('category');
+          }}>
             <Text style={styles.addText}>+ Add</Text>
           </TouchableOpacity>
         </View>
 
-        {/* LOADING */}
-        {loading && <ActivityIndicator size="large" color="#4CAF50" />}
+        {/* FLOW */}
+        {step === 'category' && Object.keys(categories).map((cat) => (
+          <TouchableOpacity key={cat} style={styles.option} onPress={() => {
+            setSelectedCategory(cat);
+            setStep('skill');
+          }}>
+            <Text>{cat}</Text>
+          </TouchableOpacity>
+        ))}
 
-        {/* CATEGORY */}
-        {step === 'category' && (
-          <>
-            <Text style={styles.stepTitle}>Select Category</Text>
+        {step === 'skill' && categories[selectedCategory].map((skill) => (
+          <TouchableOpacity key={skill} style={styles.option} onPress={() => {
+            setSelectedSkill(skill);
+            setStep('language');
+          }}>
+            <Text>{skill}</Text>
+          </TouchableOpacity>
+        ))}
 
-            <FlatList
-              data={categories}
-              numColumns={2}
-              keyExtractor={(item, index) => index.toString()}
-              renderItem={({ item }) =>
-                renderCard(item.name, () => {
-                  setSelectedCategory(item);
-                  setStep('skill');
-                })
-              }
-            />
-          </>
-        )}
-
-        {/* SKILL */}
-        {step === 'skill' && selectedCategory && (
-          <>
-            <Text style={styles.stepTitle}>Select Skill</Text>
-
-            <FlatList
-              data={selectedCategory.skills}
-              numColumns={2}
-              keyExtractor={(item, index) => index.toString()}
-              renderItem={({ item }) =>
-                renderCard(item, () => {
-                  setSelectedSkill(item);
-                  setStep('language');
-                })
-              }
-            />
-          </>
-        )}
-
-        {/* LANGUAGE */}
-        {step === 'language' && (
-          <>
-            <Text style={styles.stepTitle}>Select Language</Text>
-
-            <FlatList
-              data={languages}
-              numColumns={2}
-              keyExtractor={(item, index) => index.toString()}
-              renderItem={({ item }) =>
-                renderCard(item, () => addSkill(item))
-              }
-            />
-          </>
-        )}
+        {step === 'language' && languages.map((lang) => (
+          <TouchableOpacity key={lang} style={styles.option} onPress={() => addSkill(lang)}>
+            <Text>{lang}</Text>
+          </TouchableOpacity>
+        ))}
 
         <TouchableOpacity style={styles.button} onPress={handleRegister}>
           <Text style={styles.buttonText}>Register</Text>
@@ -272,84 +191,69 @@ export default function Register({ switchToLogin, goBack }) {
 
         <TouchableOpacity onPress={switchToLogin}>
           <Text style={styles.loginText}>
-            Already Registered?{' '}
-            <Text style={styles.loginLink}>Login</Text>
+            Already a user? <Text style={styles.loginLink}>Login</Text>
           </Text>
         </TouchableOpacity>
+
       </View>
-    </ScrollView>
+    </View>
   );
 }
-
 const styles = StyleSheet.create({
   container: {
-    paddingVertical: 40,
-    alignItems: 'center',
+    flex: 1,
     backgroundColor: '#f0f4f0',
-  },
-
-  closeBtn: {
-    position: 'absolute',
-    top: 30,
-    right: 25,
-    zIndex: 10,
-  },
-
-  closeText: {
-    fontSize: 24,
-    fontWeight: 'bold',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 
   heading: {
-    fontSize: 34,
+    fontSize: 32,
     fontWeight: 'bold',
-    color: '#151a3c',
     marginBottom: 20,
+    color: '#151a3c',
   },
 
   form: {
-    width: '60%',
-    backgroundColor: '#fff',
+    width: '55%',
+    backgroundColor: 'white',
     padding: 20,
     borderRadius: 15,
     elevation: 5,
   },
 
   input: {
-    backgroundColor: '#dde3ea',
-    padding: 14,
+    backgroundColor: '#ccd2dc',
+    padding: 15,
     borderRadius: 10,
     marginBottom: 12,
   },
 
-  label: {
+  skillHeading: {
     fontWeight: 'bold',
     marginTop: 10,
-    marginBottom: 5,
   },
 
-  skillBox: {
-    backgroundColor: '#e8f5e9',
-    padding: 8,
-    borderRadius: 10,
+  skillBar: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    marginBottom: 10,
+    backgroundColor: '#e6f4ea',
+    padding: 8,
+    borderRadius: 12,
+    marginVertical: 5,
   },
 
-  skillChip: {
-    backgroundColor: '#fff',
+  chip: {
+    backgroundColor: 'white',
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 15,
     margin: 4,
+    borderWidth: 1,
+    borderColor: '#ddd',
   },
 
-  skillText: {
-    fontSize: 12,
-  },
-
-  addBtn: {
+  addButton: {
     backgroundColor: '#4CAF50',
     paddingHorizontal: 10,
     paddingVertical: 6,
@@ -358,28 +262,20 @@ const styles = StyleSheet.create({
   },
 
   addText: {
-    color: '#fff',
+    color: 'white',
     fontWeight: 'bold',
   },
 
   stepTitle: {
-    fontWeight: 'bold',
     marginTop: 10,
-    marginBottom: 8,
-  },
-
-  card: {
-    flex: 1,
-    backgroundColor: '#eef2ff',
-    margin: 5,
-    padding: 12,
-    borderRadius: 10,
-    alignItems: 'center',
-  },
-
-  cardText: {
     fontWeight: 'bold',
-    color: '#151a3c',
+  },
+
+  option: {
+    backgroundColor: '#eee',
+    padding: 10,
+    marginTop: 5,
+    borderRadius: 8,
   },
 
   button: {
@@ -387,23 +283,36 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 10,
     alignItems: 'center',
-    marginTop: 20,
+    marginTop: 15,
   },
 
   buttonText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: 'bold',
+    color: 'white',
+    fontSize: 20,
+    fontWeight: '600',
   },
 
   loginText: {
-    marginTop: 15,
+    marginTop: 20,
     textAlign: 'center',
-    color: '#555',
+    color: 'gray',
   },
 
   loginLink: {
     color: '#4CAF50',
     fontWeight: 'bold',
+  },
+
+  closeBtn: {
+    position: 'absolute',
+    top: 40,
+    right: 30,
+    zIndex: 10,
+  },
+
+  closeText: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#151a3c',
   },
 });

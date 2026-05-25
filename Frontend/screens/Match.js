@@ -6,59 +6,38 @@ import {
   ScrollView,
   TouchableOpacity,
 } from 'react-native';
-
 import Navbar from './Navbar';
-import { API } from '../../api';
 
-export default function Match({
-  user,
-  isLoggedIn,
-  goToLogin,
-  goToHome,
-  goToDiscover,
-  goToProfile,
-  goToAbout,
-  goToMessages,
-}) {
+export default function Match({ user, isLoggedIn, ...props }) {
 
   const [matches, setMatches] = useState([]);
 
-  // ==============================
-  // FETCH MATCHES
-  // ==============================
   useEffect(() => {
-    if (!user?.username) return;
+    if (!user) return;
 
-    fetch(`${API}/match/?username=${user.username}`)
+    fetch(`http://127.0.0.1:8000/api/match/${user.user_id}/`)
       .then(res => res.json())
-      .then(data => {
-        console.log("MATCH DATA:", data);
-        setMatches(data);
-      })
-      .catch(err => console.log("Match error:", err));
+      .then(data => setMatches(data))
+      .catch(err => console.log(err));
   }, [user]);
 
-  // ==============================
-  // CONNECT BUTTON
-  // ==============================
   const sendRequest = async (m) => {
-
-    if (!isLoggedIn || !user) {
-      goToLogin?.();
+    if (!isLoggedIn) {
+      props.goToLogin();
       return;
     }
 
     try {
-      const res = await fetch(`${API}/send-request/`, {
+      const res = await fetch("http://127.0.0.1:8000/api/send-request/", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          sender: user.username,
-          receiver: m.username,
-          skill: m.skill || "",
-          language: m.language || "",
+          sender_id: user.user_id,
+          receiver_id: m.user_id,
+          skill: m.skill,
+          language: m.language,
         }),
       });
 
@@ -67,7 +46,7 @@ export default function Match({
       if (res.ok) {
         alert("Request Sent 🚀");
       } else {
-        alert(data.error || "Failed to send request");
+        alert(data.error);
       }
 
     } catch (err) {
@@ -76,58 +55,45 @@ export default function Match({
     }
   };
 
-  // ==============================
-  // UI
-  // ==============================
   return (
     <ScrollView style={styles.container}>
 
-      {/* NAVBAR FIXED */}
-      <Navbar
-        isLoggedIn={isLoggedIn}
-        goToLogin={goToLogin}
-        goToHome={goToHome}
-        goToDiscover={goToDiscover}
-        goToProfile={goToProfile}
-        goToAbout={goToAbout}
-        goToMessages={goToMessages}
-      />
+      {/* NAVBAR */}
+      <Navbar isLoggedIn={isLoggedIn} {...props} currentPage="match" />
 
+      {/* BACK BUTTON */}
+      <View style={styles.hero}>
+        <TouchableOpacity 
+          style={styles.backButton}
+          onPress={() => props.goToHome()}
+        >
+          <Text style={styles.backText}>Back</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* TITLE */}
       <Text style={styles.title}>Best Matches</Text>
 
-      {/* NO USER */}
+      {/* CONTENT */}
       {!user ? (
-        <Text style={styles.noMatch}>
-          Login to see matches
-        </Text>
+        <Text style={styles.noMatch}>Login to see matches</Text>
       ) : matches.length === 0 ? (
-        <Text style={styles.noMatch}>
-          No matches found
-        </Text>
+        <Text style={styles.noMatch}>No matches found</Text>
       ) : (
         <View style={styles.grid}>
           {matches.map((m, i) => (
             <View key={i} style={styles.card}>
 
-              <Text style={styles.username}>
-                {m.name || m.username}
-              </Text>
+              <Text style={styles.username}>{m.name}</Text>
 
-              <Text style={styles.tag}>
-                Match Score: {m.matchScore || 0}
-              </Text>
-
-              <Text style={styles.tagAlt}>
-                Click connect to send request
-              </Text>
+              <Text style={styles.tag}>Teaches: {m.skill}</Text>
+              <Text style={styles.tagAlt}>Language: {m.language}</Text>
 
               <TouchableOpacity
                 style={styles.connectBtn}
                 onPress={() => sendRequest(m)}
               >
-                <Text style={styles.connectText}>
-                  Connect
-                </Text>
+                <Text style={styles.connectText}>Connect</Text>
               </TouchableOpacity>
 
             </View>
@@ -138,72 +104,83 @@ export default function Match({
   );
 }
 
-// ==============================
-// STYLES
-// ==============================
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f0f4f0',
+  container: { 
+    flex: 1, 
+    backgroundColor: '#f0f4f0' 
   },
 
-  title: {
-    fontSize: 28,
-    textAlign: 'center',
-    margin: 20,
-    fontWeight: 'bold',
-    color: '#151a3c',
-  },
-
-  noMatch: {
-    textAlign: 'center',
-    color: 'gray',
-    marginTop: 20,
-  },
-
-  grid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+  /* BACK BUTTON */
+  hero: {
+    height: 50,
     justifyContent: 'center',
-    padding: 10,
   },
 
-  card: {
-    backgroundColor: '#fff',
-    padding: 18,
-    margin: 10,
-    borderRadius: 12,
-    width: 180,
-    elevation: 4,
+  backButton: {
+    position: 'absolute',
+    top: 10,
+    left: 20,
+    backgroundColor: '#3fad48',
+    padding: 8,
+    borderRadius: 10,
+    elevation: 3,
   },
 
-  username: {
-    fontWeight: 'bold',
-    fontSize: 18,
-    marginBottom: 5,
-  },
-
-  tag: {
-    marginTop: 5,
-    color: '#333',
-  },
-
-  tagAlt: {
-    marginBottom: 10,
-    color: '#777',
+  backText: {
     fontSize: 12,
-  },
-
-  connectBtn: {
-    backgroundColor: '#151a3c',
-    padding: 10,
-    borderRadius: 8,
-    marginTop: 10,
-  },
-
-  connectText: {
-    color: '#fff',
-    textAlign: 'center',
+    color: '#151a3c',
     fontWeight: 'bold',
+  },
+
+  title: { 
+    fontSize: 28, 
+    textAlign: 'center', 
+    margin: 20,
+    color: '#151a3c',
+    fontWeight: 'bold'
+  },
+
+  noMatch: { 
+    textAlign: 'center', 
+    color: 'gray' 
+  },
+
+  grid: { 
+    flexDirection: 'row', 
+    flexWrap: 'wrap', 
+    justifyContent: 'center' 
+  },
+
+  card: { 
+    backgroundColor: '#fff', 
+    padding: 20, 
+    margin: 10, 
+    borderRadius: 10,
+    elevation: 4
+  },
+
+  username: { 
+    fontWeight: 'bold', 
+    fontSize: 18,
+    color: '#151a3c'
+  },
+
+  tag: { 
+    marginTop: 5 
+  },
+
+  tagAlt: { 
+    marginBottom: 10 
+  },
+
+  connectBtn: { 
+    backgroundColor: '#151a3c', 
+    padding: 10, 
+    borderRadius: 10 
+  },
+
+  connectText: { 
+    color: '#fff', 
+    textAlign: 'center' 
   },
 });
