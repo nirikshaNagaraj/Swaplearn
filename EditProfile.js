@@ -1,64 +1,51 @@
-import React, { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  StyleSheet,
-  ActivityIndicator,
-  FlatList
-} from 'react-native';
-import { API } from '../../api';
+import React, { useState } from "react";
 
 export default function EditProfile({ user, onSave, onCancel }) {
 
-  const [name, setName] = useState(user.name);
-  const [email, setEmail] = useState(user.email);
+  const [name, setName] = useState(user?.username || "");
+  const [email, setEmail] = useState(user?.email || "");
 
-  const [teachSkills, setTeachSkills] = useState(user.teachSkills || []);
-  const [learnSkills, setLearnSkills] = useState(user.learnSkills || []);
+  const [teachSkills, setTeachSkills] = useState([]);
+  const [learnSkills, setLearnSkills] = useState([]);
 
-  const [selectedType, setSelectedType] = useState('');
-  const [step, setStep] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('');
-  const [selectedSkill, setSelectedSkill] = useState('');
+  const [selectedType, setSelectedType] = useState("");
+  const [step, setStep] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("");
+  const [selectedSkill, setSelectedSkill] = useState("");
 
-  const [categories, setCategories] = useState({});
-  const [languages, setLanguages] = useState([]);
-  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    fetchMetadata();
-  }, []);
+  const categories = {
+    Programming: ['JavaScript', 'Python', 'Java'],
+    Music: ['Guitar', 'Piano', 'Singing'],
+    Language: ['English', 'Spanish', 'Hindi']
+  };
 
-  const fetchMetadata = async () => {
-    const res = await fetch(`${API}/metadata/`);
-    const data = await res.json();
+  const languages = ['English', 'Hindi', 'Kannada'];
 
-    let formatted = {};
-    data.categories.forEach(c => {
-      formatted[c.name] = c.skills;
-    });
-
-    setCategories(formatted);
-    setLanguages(data.languages);
-    setLoading(false);
+  const resetFlow = () => {
+    setStep("");
+    setSelectedCategory("");
+    setSelectedSkill("");
   };
 
   const addSkill = (lang) => {
-    const newSkill = { skill: selectedSkill, language: lang };
+    const newSkill = {
+      skill: selectedSkill,
+      language: lang,
+      category: selectedCategory,
+    };
 
-    if (selectedType === 'teach') {
+    if (selectedType === "teach") {
       setTeachSkills([...teachSkills, newSkill]);
     } else {
       setLearnSkills([...learnSkills, newSkill]);
     }
 
-    setStep('');
+    resetFlow();
   };
 
   const removeSkill = (type, index) => {
-    if (type === 'teach') {
+    if (type === "teach") {
       setTeachSkills(teachSkills.filter((_, i) => i !== index));
     } else {
       setLearnSkills(learnSkills.filter((_, i) => i !== index));
@@ -66,124 +53,211 @@ export default function EditProfile({ user, onSave, onCancel }) {
   };
 
   const handleSave = async () => {
-    const res = await fetch(`${API}/update-profile/`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        username: user.username,
-        name,
-        email,
-        teachSkills,
-        learnSkills,
-      }),
-    });
-
-    if (res.ok) {
-      onSave({
-        ...user,
-        name,
-        email,
-        teachSkills,
-        learnSkills
+    try {
+      const res = await fetch("http://127.0.0.1:8000/api/update-profile/", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          user_id: user.user_id,
+          name,
+          email,
+          teachSkills,
+          learnSkills,
+        }),
       });
+
+      if (res.ok) {
+        onSave({ name, email, teachSkills, learnSkills });
+      }
+    } catch (err) {
+      console.log(err);
     }
   };
 
-  const renderCard = (item, onPress) => (
-    <TouchableOpacity style={styles.card} onPress={onPress}>
-      <Text style={styles.cardTitle}>{item}</Text>
-    </TouchableOpacity>
-  );
-
   return (
-    <View style={styles.container}>
+    <div style={styles.container}>
+      <div style={styles.card}>
 
-      <Text style={styles.heading}>Edit Profile</Text>
+        <h2 style={styles.heading}>Edit Profile</h2>
 
-      <TextInput value={name} onChangeText={setName} style={styles.input} placeholder="Name" />
-      <TextInput value={email} onChangeText={setEmail} style={styles.input} placeholder="Email" />
+        {/* USERNAME */}
+        <label style={styles.label}>Username</label>
+        <input
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          style={styles.input}
+        />
 
-      <Text style={styles.skillHeading}>Teach Skills</Text>
-      <View style={styles.skillBar}>
-        {teachSkills.map((s, i) => (
-          <TouchableOpacity key={i} onPress={() => removeSkill('teach', i)}>
-            <Text>{s.skill} ({s.language}) ✕</Text>
-          </TouchableOpacity>
+        {/* EMAIL */}
+        <label style={styles.label}>Email</label>
+        <input
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          style={styles.input}
+        />
+
+        {/* TEACH */}
+        <h3 style={styles.subHeading}>Teach Skills</h3>
+        <div style={styles.skillBar}>
+          {teachSkills.map((item, index) => (
+            <div key={index} style={styles.chip}>
+              {item.skill} ({item.language})
+              <span onClick={() => removeSkill("teach", index)} style={styles.remove}>×</span>
+            </div>
+          ))}
+          <button style={styles.addBtn} onClick={() => {
+            setSelectedType("teach");
+            setStep("category");
+          }}>+ Add</button>
+        </div>
+
+        {/* LEARN */}
+        <h3 style={styles.subHeading}>Learn Skills</h3>
+        <div style={styles.skillBar}>
+          {learnSkills.map((item, index) => (
+            <div key={index} style={styles.chip}>
+              {item.skill} ({item.language})
+              <span onClick={() => removeSkill("learn", index)} style={styles.remove}>×</span>
+            </div>
+          ))}
+          <button style={styles.addBtn} onClick={() => {
+            setSelectedType("learn");
+            setStep("category");
+          }}>+ Add</button>
+        </div>
+
+        {/* FLOW */}
+        {step === "category" && Object.keys(categories).map((cat) => (
+          <div key={cat} style={styles.option} onClick={() => {
+            setSelectedCategory(cat);
+            setStep("skill");
+          }}>{cat}</div>
         ))}
-        <TouchableOpacity onPress={() => { setSelectedType('teach'); setStep('category'); }}>
-          <Text>+ Add</Text>
-        </TouchableOpacity>
-      </View>
 
-      <Text style={styles.skillHeading}>Learn Skills</Text>
-      <View style={styles.skillBar}>
-        {learnSkills.map((s, i) => (
-          <TouchableOpacity key={i} onPress={() => removeSkill('learn', i)}>
-            <Text>{s.skill} ({s.language}) ✕</Text>
-          </TouchableOpacity>
+        {step === "skill" && categories[selectedCategory].map((skill) => (
+          <div key={skill} style={styles.option} onClick={() => {
+            setSelectedSkill(skill);
+            setStep("language");
+          }}>{skill}</div>
         ))}
-        <TouchableOpacity onPress={() => { setSelectedType('learn'); setStep('category'); }}>
-          <Text>+ Add</Text>
-        </TouchableOpacity>
-      </View>
 
-      {loading && <ActivityIndicator />}
+        {step === "language" && languages.map((lang) => (
+          <div key={lang} style={styles.option} onClick={() => addSkill(lang)}>
+            {lang}
+          </div>
+        ))}
 
-      {step === 'category' && (
-        <FlatList
-          data={Object.keys(categories)}
-          numColumns={2}
-          renderItem={({ item }) =>
-            renderCard(item, () => {
-              setSelectedCategory(item);
-              setStep('skill');
-            })
-          }
-        />
-      )}
+        {/* BUTTONS */}
+        <div style={styles.btnRow}>
+          <button onClick={handleSave} style={styles.saveBtn}>Save Changes</button>
+          <button onClick={onCancel} style={styles.cancelBtn}>Cancel</button>
+        </div>
 
-      {step === 'skill' && (
-        <FlatList
-          data={categories[selectedCategory]}
-          numColumns={2}
-          renderItem={({ item }) =>
-            renderCard(item, () => {
-              setSelectedSkill(item);
-              setStep('language');
-            })
-          }
-        />
-      )}
-
-      {step === 'language' && (
-        <FlatList
-          data={languages}
-          numColumns={2}
-          renderItem={({ item }) =>
-            renderCard(item, () => addSkill(item))
-          }
-        />
-      )}
-
-      <TouchableOpacity style={styles.saveBtn} onPress={handleSave}>
-        <Text style={{ color: 'white' }}>Save</Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity onPress={onCancel}>
-        <Text style={{ textAlign: 'center', marginTop: 10 }}>Cancel</Text>
-      </TouchableOpacity>
-
-    </View>
+      </div>
+    </div>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { padding: 20 },
-  heading: { fontSize: 24, fontWeight: 'bold' },
-  input: { backgroundColor: '#eee', padding: 10, marginTop: 10 },
-  skillHeading: { marginTop: 10, fontWeight: 'bold' },
-  skillBar: { marginTop: 5 },
-  card: { flex: 1, backgroundColor: '#ddd', margin: 5, padding: 15 },
-  cardTitle: { textAlign: 'center' },
-  saveBtn: { backgroundColor: 'green', padding: 12, marginTop: 20 }
-});
+/* STYLES */
+
+const styles = {
+  container: {
+    backgroundColor: "#eef2f3",
+    minHeight: "100vh",
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center"
+  },
+
+  card: {
+    backgroundColor: "#fff",
+    padding: "30px",
+    borderRadius: "15px",
+    width: "450px",
+    boxShadow: "0 5px 15px rgba(0,0,0,0.1)"
+  },
+
+  heading: {
+    marginBottom: "20px"
+  },
+
+  label: {
+    fontSize: "14px",
+    marginTop: "10px"
+  },
+
+  input: {
+    width: "100%",
+    padding: "10px",
+    marginBottom: "10px",
+    borderRadius: "8px",
+    border: "1px solid #ccc"
+  },
+
+  subHeading: {
+    marginTop: "15px"
+  },
+
+  skillBar: {
+    display: "flex",
+    flexWrap: "wrap",
+    gap: "5px",
+    backgroundColor: "#e6f4ea",
+    padding: "8px",
+    borderRadius: "10px"
+  },
+
+  chip: {
+    backgroundColor: "white",
+    padding: "5px 10px",
+    borderRadius: "15px",
+    border: "1px solid #ddd"
+  },
+
+  remove: {
+    marginLeft: "8px",
+    cursor: "pointer",
+    color: "red"
+  },
+
+  addBtn: {
+    backgroundColor: "#4CAF50",
+    color: "white",
+    border: "none",
+    padding: "6px 10px",
+    borderRadius: "10px",
+    cursor: "pointer"
+  },
+
+  option: {
+    backgroundColor: "#eee",
+    padding: "10px",
+    marginTop: "5px",
+    borderRadius: "8px",
+    cursor: "pointer"
+  },
+
+  btnRow: {
+    marginTop: "20px",
+    display: "flex",
+    justifyContent: "space-between"
+  },
+
+  saveBtn: {
+    backgroundColor: "#151a3c",
+    color: "white",
+    padding: "10px",
+    borderRadius: "8px",
+    border: "none",
+    width: "60%"
+  },
+
+  cancelBtn: {
+    padding: "10px",
+    borderRadius: "8px",
+    border: "1px solid #ccc",
+    width: "35%"
+  }
+};

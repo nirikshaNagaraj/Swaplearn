@@ -10,7 +10,9 @@ export default function Navbar({
   goToDiscover,
   goToMatch,
   goToProfile,
-  goToMessages, // ✅ IMPORTANT
+  goToMessages,
+  goToRequests, 
+  currentPage,
 }) {
   return (
     <View style={styles.navbar}>
@@ -26,12 +28,11 @@ export default function Navbar({
         <Text style={styles.link} onPress={goToAbout}>About</Text>
         <Text style={styles.link} onPress={goToDiscover}>Discover</Text>
         <Text style={styles.link} onPress={goToMatch}>Match</Text>
-
-        {/* ✅ SHOW ONLY WHEN LOGGED IN */}
+        
         {isLoggedIn && (
-          <Text style={styles.link} onPress={goToMessages}>
-            Messages
-          </Text>
+          <TouchableOpacity onPress={goToMessages}>
+            <Text style={styles.link}>Messages</Text>
+          </TouchableOpacity>
         )}
       </View>
 
@@ -48,9 +49,22 @@ export default function Navbar({
             </TouchableOpacity>
           </>
         ) : (
-          <TouchableOpacity onPress={goToProfile}>
-            <Text style={styles.profile}>Profile</Text>
-          </TouchableOpacity>
+          <View style={styles.rightSection}>
+
+            {currentPage === 'profile' && (
+              <TouchableOpacity onPress={() => {
+                console.log("🔔 clicked", goToRequests);
+                goToRequests && goToRequests();
+              }}>
+                <Text style={{ fontSize: 18 }}>🔔</Text>
+              </TouchableOpacity>
+            )}
+
+            <TouchableOpacity onPress={goToProfile}>
+              <Text style={styles.profile}>Profile</Text>
+            </TouchableOpacity>
+
+          </View>
         )}
       </View>
 
@@ -66,6 +80,11 @@ const styles = StyleSheet.create({
     backgroundColor: '#151a3c',
     paddingHorizontal: 30,
     paddingVertical: 15,
+  },
+  rightSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 15,
   },
 
   logo: {

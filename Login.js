@@ -1,47 +1,50 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
-import { API } from '../../api';
 
 export default function Login({ switchToRegister, onLoginSuccess, goBack }) {
 
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
 
-  
- const handleLogin = async () => {
+
+  const handleLogin = async () => {
   if (!username || !password) {
     alert('Please fill all fields');
     return;
   }
 
   try {
-    const res = await fetch(`${API}/login/`, {
+    const response = await fetch('http://localhost:8000/api/login/', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, password }),
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        username: username,
+        password: password,
+      }),
     });
 
-    const data = await res.json();
+    const data = await response.json();
 
-    if (res.ok) {
-      alert("Login success ");
-
-
-      onLoginSuccess(data);
-
+    if (data.status === "success") {
+      alert("Login Successful ✅");
+      console.log("User:", data);
+      onLoginSuccess(data);   // ✅ only now login happens
     } else {
-      alert(data.error || "Login failed ");
+      alert("Invalid Username or Password ❌");
     }
 
-  } catch (err) {
-    console.log(err);
-    alert("Server error ");
+  } catch (error) {
+    console.error(error);
+    alert("Server Error ❌");
   }
 };
+
   return (
     <View style={styles.container}>
 
-  
+     
       <TouchableOpacity style={styles.closeBtn} onPress={goBack}>
         <Text style={styles.closeText}>✕</Text>
       </TouchableOpacity>
@@ -65,6 +68,7 @@ export default function Login({ switchToRegister, onLoginSuccess, goBack }) {
           onChangeText={setPassword}
         />
 
+        
         <TouchableOpacity style={styles.button} onPress={handleLogin}>
           <Text style={styles.buttonText}>Login</Text>
         </TouchableOpacity>

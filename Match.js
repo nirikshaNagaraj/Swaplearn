@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,58 +8,90 @@ import {
 } from 'react-native';
 import Navbar from './Navbar';
 
-export default function Match(props) {
+export default function Match({ user, isLoggedIn, ...props }) {
 
-  const currentUser = {
-    teaches: 'Python',
-    learns: 'UI Design',
+  const [matches, setMatches] = useState([]);
+
+  useEffect(() => {
+    if (!user) return;
+
+    fetch(`http://127.0.0.1:8000/api/match/${user.user_id}/`)
+      .then(res => res.json())
+      .then(data => setMatches(data))
+      .catch(err => console.log(err));
+  }, [user]);
+
+  const sendRequest = async (m) => {
+    if (!isLoggedIn) {
+      props.goToLogin();
+      return;
+    }
+
+    try {
+      const res = await fetch("http://127.0.0.1:8000/api/send-request/", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          sender_id: user.user_id,
+          receiver_id: m.user_id,
+          skill: m.skill,
+          language: m.language,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (res.ok) {
+        alert("Request Sent 🚀");
+      } else {
+        alert(data.error);
+      }
+
+    } catch (err) {
+      console.log(err);
+      alert("Server error ❌");
+    }
   };
-
-  const users = [
-    { username: 'Rahul', teaches: 'UI Design', learns: 'Python' },
-    { username: 'Anjali', teaches: 'Dance', learns: 'Video Editing' },
-    { username: 'Sneha', teaches: 'UI Design', learns: 'Python' },
-  ];
-
-  const matches = users.filter(
-    (u) =>
-      u.teaches === currentUser.learns &&
-      u.learns === currentUser.teaches
-  );
 
   return (
     <ScrollView style={styles.container}>
-      <Navbar {...props} />
 
+      {/* NAVBAR */}
+      <Navbar isLoggedIn={isLoggedIn} {...props} currentPage="match" />
+
+      {/* BACK BUTTON */}
+      <View style={styles.hero}>
+        <TouchableOpacity 
+          style={styles.backButton}
+          onPress={() => props.goToHome()}
+        >
+          <Text style={styles.backText}>Back</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* TITLE */}
       <Text style={styles.title}>Best Matches</Text>
 
-      {matches.length === 0 ? (
+      {/* CONTENT */}
+      {!user ? (
+        <Text style={styles.noMatch}>Login to see matches</Text>
+      ) : matches.length === 0 ? (
         <Text style={styles.noMatch}>No matches found</Text>
       ) : (
         <View style={styles.grid}>
-          {matches.map((user, index) => (
-            <View key={index} style={styles.card}>
+          {matches.map((m, i) => (
+            <View key={i} style={styles.card}>
 
-              <Text style={styles.username}>{user.username}</Text>
+              <Text style={styles.username}>{m.name}</Text>
 
-              <View style={styles.matchBadge}>
-                <Text style={styles.matchText}>Perfect Match</Text>
-              </View>
-
-              <View style={styles.tag}>
-                <Text style={styles.tagText}>Teaches: {user.teaches}</Text>
-              </View>
-
-              <View style={styles.tagAlt}>
-                <Text style={styles.tagTextAlt}>Learns: {user.learns}</Text>
-              </View>
+              <Text style={styles.tag}>Teaches: {m.skill}</Text>
+              <Text style={styles.tagAlt}>Language: {m.language}</Text>
 
               <TouchableOpacity
                 style={styles.connectBtn}
-                onPress={() => {
-                  if (!props.isLoggedIn) props.goToLogin();
-                  else alert('Matched & Connected!');
-                }}
+                onPress={() => sendRequest(m)}
               >
                 <Text style={styles.connectText}>Connect</Text>
               </TouchableOpacity>
@@ -73,94 +105,82 @@ export default function Match(props) {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f0f4f0',
+  container: { 
+    flex: 1, 
+    backgroundColor: '#f0f4f0' 
   },
 
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    marginVertical: 20,
-    color: '#151a3c',
-  },
-
-  noMatch: {
-    textAlign: 'center',
-    marginTop: 20,
-    color: 'gray',
-  },
-
-  grid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+  /* BACK BUTTON */
+  hero: {
+    height: 50,
     justifyContent: 'center',
   },
 
-  card: {
-    backgroundColor: '#fff',
-    width: 240,
-    padding: 20,
-    margin: 12,
-    borderRadius: 15,
-    elevation: 5,
-  },
-
-  username: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#151a3c',
-    marginBottom: 8,
-  },
-
-  matchBadge: {
-    backgroundColor: '#4CAF50',
-    padding: 5,
-    borderRadius: 6,
-    alignSelf: 'flex-start',
-    marginBottom: 8,
-  },
-
-  matchText: {
-    color: '#fff',
-    fontSize: 11,
-    fontWeight: 'bold',
-  },
-
-  tag: {
-    backgroundColor: '#151a3c',
-    padding: 6,
-    borderRadius: 8,
-    marginBottom: 6,
-  },
-
-  tagAlt: {
-    backgroundColor: '#4CAF50',
-    padding: 6,
-    borderRadius: 8,
-    marginBottom: 10,
-  },
-
-  tagText: {
-    color: '#fff',
-    fontSize: 12,
-  },
-
-  tagTextAlt: {
-    color: '#fff',
-    fontSize: 12,
-  },
-
-  connectBtn: {
-    backgroundColor: '#151a3c',
-    padding: 10,
+  backButton: {
+    position: 'absolute',
+    top: 10,
+    left: 20,
+    backgroundColor: '#3fad48',
+    padding: 8,
     borderRadius: 10,
-    alignItems: 'center',
+    elevation: 3,
   },
 
-  connectText: {
-    color: '#fff',
+  backText: {
+    fontSize: 12,
+    color: '#151a3c',
     fontWeight: 'bold',
+  },
+
+  title: { 
+    fontSize: 28, 
+    textAlign: 'center', 
+    margin: 20,
+    color: '#151a3c',
+    fontWeight: 'bold'
+  },
+
+  noMatch: { 
+    textAlign: 'center', 
+    color: 'gray' 
+  },
+
+  grid: { 
+    flexDirection: 'row', 
+    flexWrap: 'wrap', 
+    justifyContent: 'center' 
+  },
+
+  card: { 
+    backgroundColor: '#fff', 
+    padding: 20, 
+    margin: 10, 
+    borderRadius: 10,
+    elevation: 4
+  },
+
+  username: { 
+    fontWeight: 'bold', 
+    fontSize: 18,
+    color: '#151a3c'
+  },
+
+  tag: { 
+    marginTop: 5 
+  },
+
+  tagAlt: { 
+    marginBottom: 10 
+  },
+
+  connectBtn: { 
+    backgroundColor: '#151a3c', 
+    padding: 10, 
+    borderRadius: 10 
+  },
+
+  connectText: { 
+    color: '#fff', 
+    textAlign: 'center' 
   },
 });
